@@ -41,7 +41,11 @@ public class Products {
 
     @ManyToOne
     @JoinColumn(name = "category_id", nullable = false)
-    private Categories category;
+    private Category category;
+
+    @ManyToOne
+    @JoinColumn(name = "brand_id", nullable = false)
+    private Brand brand;
 
     @Column(name = "image_url", length = 255)
     private String imageUrl;
