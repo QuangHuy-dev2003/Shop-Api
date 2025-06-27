@@ -28,6 +28,9 @@ public class Product_variants {
     @Column(name = "size", nullable = false, length = 10)
     private Size size;
 
+    @Column(name = "color", nullable = false, length = 10)
+    private String color;
+
     @Column(name = "stock_quantity", nullable = false)
     private Integer stockQuantity = 0;
 
@@ -39,6 +42,11 @@ public class Product_variants {
     private List<Cart_item> cart_items;
 
     public enum Size {
-        S, M, L, XL, XXL
+        XS, S, M, L, XL, XXL, XXXL,
+        // Size số cho giày
+        SIZE_36, SIZE_37, SIZE_38, SIZE_39, SIZE_40, SIZE_41, SIZE_42, SIZE_43, SIZE_44, SIZE_45, SIZE_46,
+        // Size số cho quần áo
+        WAIST_28, WAIST_29, WAIST_30, WAIST_31, WAIST_32, WAIST_33, WAIST_34, WAIST_35, WAIST_36,
+        WAIST_38, WAIST_40, WAIST_42, WAIST_44, WAIST_46, WAIST_48, WAIST_50
     }
 }

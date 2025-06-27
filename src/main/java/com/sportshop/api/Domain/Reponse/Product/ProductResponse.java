@@ -50,6 +50,7 @@ public class ProductResponse {
     public static class ProductVariantResponse {
         private Long id;
         private String size;
+        private String color;
         private Integer stockQuantity;
         private BigDecimal price;
     }

@@ -50,6 +50,9 @@ public class CreateProductRequest {
         @NotNull(message = "Kích thước không được để trống")
         private Product_variants.Size size;
 
+        @NotNull(message = "Màu sắc không được để trống")
+        private String color;
+
         @NotNull(message = "Số lượng tồn kho không được để trống")
         @Positive(message = "Số lượng tồn kho phải là số dương")
         private Integer stockQuantity;

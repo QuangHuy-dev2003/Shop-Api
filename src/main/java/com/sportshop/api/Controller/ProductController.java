@@ -18,31 +18,51 @@ import java.util.List;
 @RequestMapping("/api/v1")
 public class ProductController {
 
-    @Autowired
-    private ProductService productService;
+    private final ProductService productService;
 
-    /**
-     * Tạo sản phẩm mới với thông tin cơ bản (không upload ảnh)
-     */
+    public ProductController(ProductService productService) {
+        this.productService = productService;
+    }
+
+    // Lấy tất cả sản phẩm
+    @GetMapping("/products")
+    public ResponseEntity<ApiResponse<List<ProductResponse>>> getAllProducts() {
+        List<ProductResponse> products = productService.getAllProductResponses();
+        return ResponseEntity.ok(ApiResponse.success(products, "Lấy danh sách sản phẩm thành công"));
+    }
+
+    // Lấy sản phẩm theo ID
+    @GetMapping("/products/{id}")
+    public ResponseEntity<ApiResponse<ProductResponse>> getProductById(@PathVariable Long id) {
+        ProductResponse product = productService.getProductResponseById(id);
+        return ResponseEntity.ok(ApiResponse.success(product, "Lấy sản phẩm thành công"));
+    }
+
+    // Tạo mới sản phẩm (có thể có hoặc không có ảnh)
     @PostMapping("/products")
     public ResponseEntity<ApiResponse<ProductResponse>> createProduct(
-            @Valid @RequestBody CreateProductRequest request) {
-        ProductResponse product = productService.createProduct(request);
+            @RequestPart("product") String productJson,
+            @RequestPart(value = "images", required = false) List<MultipartFile> images) {
+        ProductResponse created = productService.createOrUpdateProduct(null, productJson, images);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(product, "Tạo sản phẩm thành công"));
+                .body(ApiResponse.success(created, "Tạo sản phẩm thành công"));
     }
 
-    /**
-     * Tạo sản phẩm mới với upload ảnh lên Cloudinary
-     */
-    @PostMapping("/products/with-images")
-    public ResponseEntity<ApiResponse<ProductResponse>> createProductWithImages(
-            @RequestPart("product") @Valid CreateProductRequest request,
-            @RequestPart(value = "mainImage", required = false) MultipartFile mainImage,
-            @RequestPart(value = "additionalImages", required = false) List<MultipartFile> additionalImages) {
-
-        ProductResponse product = productService.createProductWithImageUpload(request, mainImage, additionalImages);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(product, "Tạo sản phẩm với ảnh thành công"));
+    // Cập nhật sản phẩm
+    @PutMapping("/products/{id}")
+    public ResponseEntity<ApiResponse<ProductResponse>> updateProduct(
+            @PathVariable Long id,
+            @RequestPart("product") String productJson,
+            @RequestPart(value = "images", required = false) List<MultipartFile> images) {
+        ProductResponse updated = productService.createOrUpdateProduct(id, productJson, images);
+        return ResponseEntity.ok(ApiResponse.success(updated, "Cập nhật sản phẩm thành công"));
     }
+
+    // Xóa sản phẩm (xóa luôn ảnh trên Cloudinary)
+    @DeleteMapping("/products/{id}")
+    public ResponseEntity<ApiResponse<String>> deleteProduct(@PathVariable Long id) {
+        productService.deleteProduct(id);
+        return ResponseEntity.ok(ApiResponse.success("Xóa sản phẩm thành công"));
+    }
+
 }

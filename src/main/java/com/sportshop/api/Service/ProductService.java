@@ -12,6 +12,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.sportshop.api.Domain.Products;
 import com.sportshop.api.Domain.Reponse.Product.ProductResponse;
 import com.sportshop.api.Domain.Category;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sportshop.api.Domain.Brand;
 import com.sportshop.api.Domain.Product_images;
 import com.sportshop.api.Domain.Product_variants;
@@ -31,6 +32,7 @@ public class ProductService {
     private final ProductImageRepository productImageRepository;
     private final ProductVariantsRepository productVariantsRepository;
     private final CloudinaryService cloudinaryService;
+    private final ObjectMapper objectMapper;
 
     public ProductService(ProductRepository productRepository, CategoryRepository categoryRepository,
             BrandRepository brandRepository, ProductImageRepository productImageRepository,
@@ -41,77 +43,160 @@ public class ProductService {
         this.productImageRepository = productImageRepository;
         this.productVariantsRepository = productVariantsRepository;
         this.cloudinaryService = cloudinaryService;
+        this.objectMapper = new ObjectMapper();
     }
 
-    public List<Products> getAllProducts() {
-        return productRepository.findAll();
+    // Lấy tất cả sản phẩm (trả về response chuẩn)
+    public List<ProductResponse> getAllProductResponses() {
+        return productRepository.findAll().stream()
+                .map(this::convertToProductResponse)
+                .collect(Collectors.toList());
+    }
+
+    // Lấy sản phẩm theo ID (trả về response chuẩn)
+    public ProductResponse getProductResponseById(Long id) {
+        Products product = productRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm với ID: " + id));
+        return convertToProductResponse(product);
     }
 
     /**
-     * Tạo sản phẩm mới với thông tin cơ bản
+     * Tạo mới hoặc cập nhật sản phẩm (nếu id null thì tạo mới, có id thì cập nhật)
+     * 
+     * @param id          id sản phẩm (null nếu tạo mới)
+     * @param productJson JSON string thông tin sản phẩm (bao gồm variants,
+     *                    categoryId, brandId, ...)
+     * @param images      Danh sách ảnh (có thể null)
      */
     @Transactional
-    public ProductResponse createProduct(CreateProductRequest request) {
-        // Tìm category
-        Category category = categoryRepository.findById(request.getCategoryId())
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy danh mục với ID: " + request.getCategoryId()));
+    public ProductResponse createOrUpdateProduct(Long id, String productJson, List<MultipartFile> images) {
+        try {
+            // Parse JSON thành DTO
+            CreateProductRequest request = objectMapper.readValue(productJson, CreateProductRequest.class);
 
-        // Tìm brand
-        Brand brand = brandRepository.findById(request.getBrandId())
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy thương hiệu với ID: " + request.getBrandId()));
+            Products product;
+            if (id == null) {
+                product = new Products();
+                product.setIsActive(true);
+            } else {
+                product = productRepository.findById(id)
+                        .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm với ID: " + id));
+                // Xóa ảnh cũ trên Cloudinary nếu có
+                deleteProductImagesOnCloudinary(product);
+                // Xóa ảnh cũ trong DB
+                productImageRepository.deleteByProductId(product.getId());
+                // Xóa variants cũ nếu muốn (tùy logic)
+                productVariantsRepository.deleteByProductId(product.getId());
+            }
 
-        // Tạo sản phẩm mới
-        Products product = new Products();
-        product.setName(request.getName());
-        product.setDescription(request.getDescription());
-        product.setPrice(request.getPrice());
-        product.setSale(request.getSale());
-        product.setCategory(category);
-        product.setBrand(brand);
-        product.setImageUrl(request.getImageUrl());
-        product.setIsActive(true);
+            // Set các trường cơ bản
+            product.setName(request.getName());
+            product.setDescription(request.getDescription());
+            product.setPrice(request.getPrice());
+            product.setSale(request.getSale());
+            product.setIsActive(true);
 
-        // Tính sale price nếu có sale
-        if (request.getSale() != null && request.getSale() > 0) {
-            BigDecimal salePrice = request.getPrice().multiply(BigDecimal.valueOf(100 - request.getSale()))
-                    .divide(BigDecimal.valueOf(100));
-            product.setSalePrice(salePrice);
+            // Set category & brand
+            Category category = categoryRepository.findById(request.getCategoryId())
+                    .orElseThrow(
+                            () -> new RuntimeException("Không tìm thấy danh mục với ID: " + request.getCategoryId()));
+            Brand brand = brandRepository.findById(request.getBrandId())
+                    .orElseThrow(
+                            () -> new RuntimeException("Không tìm thấy thương hiệu với ID: " + request.getBrandId()));
+            product.setCategory(category);
+            product.setBrand(brand);
+
+            // Tính sale price nếu có sale
+            if (request.getSale() != null && request.getSale() > 0) {
+                BigDecimal salePrice = request.getPrice().multiply(BigDecimal.valueOf(100 - request.getSale()))
+                        .divide(BigDecimal.valueOf(100));
+                product.setSalePrice(salePrice);
+            }
+
+            // Lưu sản phẩm
+            Products savedProduct = productRepository.save(product);
+
+            // Upload ảnh lên Cloudinary nếu có
+            List<String> imageUrls = new ArrayList<>();
+            if (images != null && !images.isEmpty()) {
+                imageUrls = cloudinaryService.uploadMultipleImages(images, "products");
+            } else if (request.getAdditionalImages() != null) {
+                imageUrls = request.getAdditionalImages();
+            }
+
+            // Lưu ảnh vào DB
+            if (imageUrls != null && !imageUrls.isEmpty()) {
+                List<Product_images> productImages = imageUrls.stream()
+                        .map(url -> {
+                            Product_images img = new Product_images();
+                            img.setProduct(savedProduct);
+                            img.setImageUrl(url);
+                            return img;
+                        }).collect(Collectors.toList());
+                productImageRepository.saveAll(productImages);
+                // Ảnh đầu tiên là ảnh đại diện
+                savedProduct.setImageUrl(imageUrls.get(0));
+                productRepository.save(savedProduct);
+            }
+
+            // Lưu variants nếu có
+            if (request.getVariants() != null && !request.getVariants().isEmpty()) {
+                List<Product_variants> variants = request.getVariants().stream()
+                        .map(variantRequest -> {
+                            Product_variants variant = new Product_variants();
+                            variant.setProduct(savedProduct);
+                            variant.setSize(variantRequest.getSize());
+                            variant.setColor(variantRequest.getColor());
+                            variant.setStockQuantity(variantRequest.getStockQuantity());
+                            variant.setPrice(
+                                    variantRequest.getPrice() != null ? variantRequest.getPrice() : request.getPrice());
+                            return variant;
+                        }).collect(Collectors.toList());
+                productVariantsRepository.saveAll(variants);
+            }
+
+            return convertToProductResponse(savedProduct);
+
+        } catch (Exception e) {
+            throw new RuntimeException("Lỗi xử lý sản phẩm: " + e.getMessage(), e);
         }
+    }
 
-        // Lưu sản phẩm
-        Products savedProduct = productRepository.save(product);
+    /**
+     * Xóa sản phẩm và toàn bộ ảnh trên Cloudinary
+     */
+    @Transactional
+    public void deleteProduct(Long id) {
+        Products product = productRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm với ID: " + id));
+        // Xóa ảnh trên Cloudinary
+        deleteProductImagesOnCloudinary(product);
+        // Xóa ảnh trong DB
+        productImageRepository.deleteByProductId(product.getId());
+        // Xóa variants
+        productVariantsRepository.deleteByProductId(product.getId());
+        // Xóa sản phẩm
+        productRepository.delete(product);
+    }
 
-        // Tạo product images nếu có
-        if (request.getAdditionalImages() != null && !request.getAdditionalImages().isEmpty()) {
-            List<Product_images> productImages = request.getAdditionalImages().stream()
-                    .map(imageUrl -> {
-                        Product_images image = new Product_images();
-                        image.setProduct(savedProduct);
-                        image.setImageUrl(imageUrl);
-                        return image;
-                    })
-                    .collect(Collectors.toList());
-            productImageRepository.saveAll(productImages);
+    /**
+     * Xóa tất cả ảnh của sản phẩm trên Cloudinary
+     */
+    private void deleteProductImagesOnCloudinary(Products product) {
+        List<Product_images> images = productImageRepository.findByProductId(product.getId());
+        for (Product_images img : images) {
+            String publicId = cloudinaryService.extractPublicIdFromUrl(img.getImageUrl());
+            if (publicId != null) {
+                cloudinaryService.deleteImage(publicId);
+            }
         }
-
-        // Tạo product variants nếu có
-        if (request.getVariants() != null && !request.getVariants().isEmpty()) {
-            List<Product_variants> variants = request.getVariants().stream()
-                    .map(variantRequest -> {
-                        Product_variants variant = new Product_variants();
-                        variant.setProduct(savedProduct);
-                        variant.setSize(variantRequest.getSize());
-                        variant.setStockQuantity(variantRequest.getStockQuantity());
-                        variant.setPrice(
-                                variantRequest.getPrice() != null ? variantRequest.getPrice() : request.getPrice());
-                        return variant;
-                    })
-                    .collect(Collectors.toList());
-            productVariantsRepository.saveAll(variants);
+        // Xóa ảnh đại diện nếu có
+        if (product.getImageUrl() != null && !product.getImageUrl().isEmpty()) {
+            String publicId = cloudinaryService.extractPublicIdFromUrl(product.getImageUrl());
+            if (publicId != null) {
+                cloudinaryService.deleteImage(publicId);
+            }
         }
-
-        // Chuyển đổi thành response
-        return convertToProductResponse(savedProduct, request.getAdditionalImages(), request.getVariants());
     }
 
     /**
@@ -156,6 +241,7 @@ public class ProductService {
                     .map(variantRequest -> {
                         ProductResponse.ProductVariantResponse variantResponse = new ProductResponse.ProductVariantResponse();
                         variantResponse.setSize(variantRequest.getSize().name());
+                        variantResponse.setColor(variantRequest.getColor());
                         variantResponse.setStockQuantity(variantRequest.getStockQuantity());
                         variantResponse.setPrice(
                                 variantRequest.getPrice() != null ? variantRequest.getPrice() : product.getPrice());
@@ -166,5 +252,23 @@ public class ProductService {
         }
 
         return response;
+    }
+
+    // Overloaded method to allow calling with just Products product
+    private ProductResponse convertToProductResponse(Products product) {
+        // Fetch images from DB
+        List<Product_images> images = productImageRepository.findByProductId(product.getId());
+        List<String> imageUrls = images.stream().map(Product_images::getImageUrl).collect(Collectors.toList());
+        // Fetch variants from DB
+        List<Product_variants> variants = productVariantsRepository.findByProductId(product.getId());
+        List<CreateProductRequest.ProductVariantRequest> variantRequests = variants.stream().map(variant -> {
+            CreateProductRequest.ProductVariantRequest req = new CreateProductRequest.ProductVariantRequest();
+            req.setSize(variant.getSize());
+            req.setColor(variant.getColor());
+            req.setStockQuantity(variant.getStockQuantity());
+            req.setPrice(variant.getPrice());
+            return req;
+        }).collect(Collectors.toList());
+        return convertToProductResponse(product, imageUrls, variantRequests);
     }
 }
