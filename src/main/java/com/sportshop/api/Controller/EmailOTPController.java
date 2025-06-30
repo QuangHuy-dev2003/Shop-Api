@@ -29,8 +29,6 @@ public class EmailOTPController {
      */
     @PostMapping("/otp/generate")
     public ResponseEntity<ApiResponse<Map<String, String>>> generateOTP(@RequestParam Long userId) {
-        // TODO: Lấy user từ userId (cần inject UserService)
-        // Users user = userService.getUserById(userId);
 
         // Tạm thời tạo user mock để test
         Users user = new Users();
@@ -113,15 +111,4 @@ public class EmailOTPController {
         return ResponseEntity.ok(ApiResponse.success(response, "Lấy thông tin OTP thành công"));
     }
 
-    /**
-     * Xóa OTP cũ của user
-     * 
-     * @param userId ID của user
-     * @return Kết quả xóa
-     */
-    @DeleteMapping("/otp/cleanup/{userId}")
-    public ResponseEntity<ApiResponse<String>> cleanupOldOTPs(@PathVariable Long userId) {
-        emailOTPService.cleanupOldOTPs(userId);
-        return ResponseEntity.ok(ApiResponse.success("Xóa OTP cũ thành công"));
-    }
 }

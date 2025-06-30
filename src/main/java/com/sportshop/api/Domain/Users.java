@@ -45,6 +45,9 @@ public class Users {
     @Column(name = "provider", nullable = false, length = 20)
     private Provider provider = Provider.DEFAULT;
 
+    @Column(name = "avatar", length = 255)
+    private String avatar;
+
     @OneToMany(mappedBy = "user")
     @JsonIgnore
     private List<Shipping_addresses> shippingAddresses;
@@ -68,6 +71,10 @@ public class Users {
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnore
     private Cart cart;
+
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
+    private List<RefreshToken> refreshTokens;
 
     @PrePersist
     protected void onCreate() {

@@ -21,7 +21,7 @@ public class Shipping_addresses {
     @JoinColumn(name = "user_id", nullable = false)
     private Users user;
 
-    @Column(name = "address_line", nullable = false, length = 255)
+    @Column(name = "address_line", length = 255)
     private String addressLine;
 
     @Column(name = "ward", length = 100)
