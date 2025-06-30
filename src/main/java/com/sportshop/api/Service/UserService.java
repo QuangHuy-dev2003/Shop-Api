@@ -12,6 +12,7 @@ import com.sportshop.api.Domain.Request.User.CreateUserRequest;
 import com.sportshop.api.Domain.Request.User.UpdateUserRequest;
 import com.sportshop.api.Domain.Reponse.User.ShippingAddressResponse;
 import com.sportshop.api.Domain.Reponse.User.UserResponse;
+import com.sportshop.api.Repository.RoleRepository;
 
 import java.io.IOException;
 import java.util.List;
@@ -25,15 +26,18 @@ public class UserService {
     private final ShippingAddressRepository shippingAddressRepository;
     private final CloudinaryService cloudinaryService;
     private final PasswordEncoder passwordEncoder;
+    private final RoleRepository roleRepository;
 
     public UserService(UserRepository userRepository,
             ShippingAddressRepository shippingAddressRepository,
             CloudinaryService cloudinaryService,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder,
+            RoleRepository roleRepository) {
         this.userRepository = userRepository;
         this.shippingAddressRepository = shippingAddressRepository;
         this.cloudinaryService = cloudinaryService;
         this.passwordEncoder = passwordEncoder;
+        this.roleRepository = roleRepository;
     }
 
     /**
@@ -52,6 +56,12 @@ public class UserService {
                 throw new RuntimeException("Số điện thoại đã tồn tại trong hệ thống");
             }
         }
+        // Kiểm tra roleId có tồn tại không
+        if (request.getRoleId() != null) {
+            if (!roleRepository.existsById(request.getRoleId())) {
+                throw new RuntimeException("Role không tồn tại");
+            }
+        }
 
         // Tạo user mới
         Users user = new Users();
@@ -62,6 +72,7 @@ public class UserService {
         user.setRoleId(request.getRoleId());
         user.setFirstLogin(true);
         user.setProvider(Users.Provider.DEFAULT);
+        user.setGender(Users.Gender.valueOf(request.getGender()));
 
         // Xử lý avatar nếu có
         if (avatarFile != null && !avatarFile.isEmpty()) {
@@ -145,6 +156,9 @@ public class UserService {
         }
         if (request.getFirstLogin() != null) {
             user.setFirstLogin(request.getFirstLogin());
+        }
+        if (request.getGender() != null) {
+            user.setGender(Users.Gender.valueOf(request.getGender()));
         }
 
         // Xử lý avatar - ưu tiên file upload trước, sau đó mới đến URL

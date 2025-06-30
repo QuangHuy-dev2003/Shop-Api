@@ -36,15 +36,6 @@ public class RefreshToken {
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
-    @Column(name = "device_info", length = 255)
-    private String deviceInfo;
-
-    @Column(name = "ip_address", length = 45)
-    private String ipAddress;
-
-    @Column(name = "user_agent", length = 500)
-    private String userAgent;
-
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();

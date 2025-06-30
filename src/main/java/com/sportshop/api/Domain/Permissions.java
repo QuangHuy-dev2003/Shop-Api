@@ -25,6 +25,18 @@ public class Permissions {
     @Column(name = "description", length = 255)
     private String description;
 
+    @Column(name = "api_path", length = 255)
+    private String apiPath;
+
+    @Column(name = "method", length = 10)
+    private String method;
+
+    @Column(name = "module", length = 100)
+    private String module;
+
+    @Column(name = "active")
+    private Boolean active = true;
+
     @ManyToMany(mappedBy = "permissions", fetch = FetchType.LAZY)
     @JsonIgnore
     private List<Role> roles;

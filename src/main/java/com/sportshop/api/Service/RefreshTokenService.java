@@ -32,7 +32,7 @@ public class RefreshTokenService {
      * Tạo refresh token mới cho user
      */
     @Transactional
-    public RefreshToken createRefreshToken(Users user, String deviceInfo, String ipAddress, String userAgent) {
+    public RefreshToken createRefreshToken(Users user) {
         // Kiểm tra số lượng token hiện tại của user
         long currentTokenCount = refreshTokenRepository.countValidTokensByUserId(user.getId(), LocalDateTime.now());
 
@@ -49,9 +49,6 @@ public class RefreshTokenService {
         refreshToken.setUser(user);
         refreshToken.setToken(token);
         refreshToken.setExpiresAt(expiresAt);
-        refreshToken.setDeviceInfo(deviceInfo);
-        refreshToken.setIpAddress(ipAddress);
-        refreshToken.setUserAgent(userAgent);
 
         return refreshTokenRepository.save(refreshToken);
     }

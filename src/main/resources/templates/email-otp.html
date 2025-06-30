@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Xác thực tài khoản - SportX</title>
+    <style>
+      * {
+        margin: 0 !important;
+        padding: 0 !important;
+        box-sizing: border-box !important;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif !important;
+        background-color: #f4f4f4 !important;
+        line-height: 1.6 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+
+      .container {
+        max-width: 600px !important;
+        margin: 0 auto !important;
+        background-color: #ffffff !important;
+        border-radius: 10px !important;
+        overflow: hidden !important;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+      }
+
+      .header {
+        background: linear-gradient(
+          135deg,
+          #1e3c72 0%,
+          #2a5298 100%
+        ) !important;
+        color: white !important;
+        padding: 30px !important;
+        text-align: center !important;
+      }
+
+      .header h1 {
+        font-size: 28px !important;
+        margin-bottom: 10px !important;
+        font-weight: 700 !important;
+        color: white !important;
+      }
+
+      .header p {
+        font-size: 16px !important;
+        opacity: 0.9 !important;
+        color: white !important;
+      }
+
+      .content {
+        padding: 40px 30px !important;
+        background-color: #ffffff !important;
+      }
+
+      .greeting {
+        font-size: 18px !important;
+        color: #333 !important;
+        margin-bottom: 20px !important;
+      }
+
+      .message {
+        font-size: 16px !important;
+        color: #666 !important;
+        margin-bottom: 30px !important;
+        line-height: 1.8 !important;
+      }
+
+      .otp-container {
+        background: linear-gradient(
+          135deg,
+          #ff6b35 0%,
+          #f7931e 100%
+        ) !important;
+        border-radius: 15px !important;
+        padding: 30px !important;
+        text-align: center !important;
+        margin: 30px 0 !important;
+      }
+
+      .otp-label {
+        color: white !important;
+        font-size: 16px !important;
+        margin-bottom: 15px !important;
+        font-weight: 600 !important;
+      }
+
+      .otp-code {
+        font-size: 36px !important;
+        font-weight: 700 !important;
+        color: white !important;
+        letter-spacing: 8px !important;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3) !important;
+      }
+
+      .warning {
+        background-color: #e8f4fd !important;
+        border: 1px solid #3498db !important;
+        border-radius: 8px !important;
+        padding: 20px !important;
+        margin: 30px 0 !important;
+      }
+
+      .warning h3 {
+        color: #2980b9 !important;
+        margin-bottom: 10px !important;
+        font-size: 16px !important;
+      }
+
+      .warning ul {
+        color: #2980b9 !important;
+        padding-left: 20px !important;
+      }
+
+      .warning li {
+        margin-bottom: 5px !important;
+        color: #2980b9 !important;
+      }
+
+      .footer {
+        background-color: #f8f9fa !important;
+        padding: 30px !important;
+        text-align: center !important;
+        border-top: 1px solid #e9ecef !important;
+      }
+
+      .footer p {
+        color: #6c757d !important;
+        font-size: 14px !important;
+        margin-bottom: 10px !important;
+      }
+
+      .contact-info {
+        color: #495057 !important;
+        font-size: 14px !important;
+      }
+
+      .contact-info p {
+        color: #495057 !important;
+        font-size: 14px !important;
+      }
+
+      .logo {
+        font-size: 24px !important;
+        font-weight: 700 !important;
+        margin-bottom: 10px !important;
+        color: white !important;
+      }
+
+      /* Thêm các CSS inline cho bảo mật */
+      table {
+        border-collapse: collapse !important;
+        mso-table-lspace: 0pt !important;
+        mso-table-rspace: 0pt !important;
+      }
+
+      img {
+        border: 0 !important;
+        height: auto !important;
+        line-height: 100% !important;
+        outline: none !important;
+        text-decoration: none !important;
+      }
+
+      /* Ghi đè các style mặc định của Gmail */
+      .gmail_default {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif !important;
+        font-size: 16px !important;
+        color: #333 !important;
+      }
+
+      /* Responsive */
+      @media (max-width: 600px) {
+        .container {
+          margin: 10px !important;
+          border-radius: 5px !important;
+        }
+
+        .header,
+        .content,
+        .footer {
+          padding: 20px !important;
+        }
+
+        .otp-code {
+          font-size: 28px !important;
+          letter-spacing: 4px !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <div class="logo">SportX</div>
+        <h1>Xác thực tài khoản</h1>
+        <p>Chào mừng bạn đến với SportX - Nơi thể thao gặp gỡ đam mê</p>
+      </div>
+
+      <div class="content">
+        <div class="greeting">
+          Xin chào <strong th:text="${fullName}">Người dùng</strong>!
+        </div>
+
+        <div class="message">
+          Cảm ơn bạn đã đăng ký tài khoản tại SportX. Để hoàn tất quá trình đăng
+          ký và kích hoạt tài khoản của bạn, vui lòng sử dụng mã OTP dưới đây:
+        </div>
+
+        <div class="otp-container">
+          <div class="otp-label">Mã xác thực của bạn:</div>
+          <div class="otp-code" th:text="${otpCode}">123456</div>
+        </div>
+
+        <div class="warning">
+          <h3>⚠️ Lưu ý quan trọng:</h3>
+          <ul>
+            <li>Mã OTP này có hiệu lực trong 5 phút</li>
+            <li>Không chia sẻ mã này với bất kỳ ai</li>
+            <li>
+              Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email này
+            </li>
+            <li>Mã OTP chỉ có thể sử dụng một lần</li>
+          </ul>
+        </div>
+
+        <div class="message">
+          Sau khi xác thực thành công, bạn có thể đăng nhập và sử dụng đầy đủ
+          các tính năng của SportX.
+        </div>
+      </div>
+
+      <div class="footer">
+        <p><strong>SportX</strong> - Nơi thể thao gặp gỡ đam mê</p>
+        <div class="contact-info">
+          <p>📧 Email: support@sportx.com</p>
+          <p>📞 Hotline: 1900-xxxx</p>
+          <p>🌐 Website: www.sportx.com</p>
+        </div>
+        <p
+          style="
+            margin-top: 20px !important;
+            font-size: 12px !important;
+            color: #adb5bd !important;
+          ">
+          Email này được gửi tự động, vui lòng không trả lời email này.
+        </p>
+      </div>
+    </div>
+  </body>
+</html>

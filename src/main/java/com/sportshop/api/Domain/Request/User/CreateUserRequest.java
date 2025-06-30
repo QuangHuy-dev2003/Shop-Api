@@ -24,6 +24,9 @@ public class CreateUserRequest {
     @Size(max = 20, message = "Số điện thoại không được vượt quá 20 ký tự")
     private String phone;
 
+    @NotBlank(message = "Giới tính không được để trống")
+    private String gender;
+
     private Long roleId;
 
     // Thông tin địa chỉ (không bắt buộc)

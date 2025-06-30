@@ -23,6 +23,8 @@ public class UpdateUserRequest {
 
     private String avatar;
 
+    private String gender;
+
     // Thông tin địa chỉ (không bắt buộc)
     private String addressLine;
     private String ward;

@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Xác nhận đơn hàng - SportX</title>
+    <style>
+      * {
+        margin: 0 !important;
+        padding: 0 !important;
+        box-sizing: border-box !important;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif !important;
+        background-color: #f5f5f5 !important;
+        line-height: 1.6 !important;
+        margin: 0 !important;
+        padding: 20px !important;
+      }
+
+      .container {
+        max-width: 650px !important;
+        margin: 0 auto !important;
+        background-color: #ffffff !important;
+        border-radius: 12px !important;
+        overflow: hidden !important;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1) !important;
+      }
+
+      .header {
+        background: linear-gradient(
+          135deg,
+          #1e3c72 0%,
+          #2a5298 100%
+        ) !important;
+        color: white !important;
+        padding: 30px !important;
+        text-align: center !important;
+      }
+
+      .header .logo {
+        font-size: 28px !important;
+        font-weight: 700 !important;
+        margin-bottom: 10px !important;
+        color: white !important;
+      }
+
+      .header h1 {
+        font-size: 24px !important;
+        margin-bottom: 8px !important;
+        font-weight: 600 !important;
+        color: white !important;
+      }
+
+      .header p {
+        font-size: 16px !important;
+        opacity: 0.9 !important;
+        color: white !important;
+      }
+
+      .success-badge {
+        background: linear-gradient(
+          135deg,
+          #27ae60 0%,
+          #2ecc71 100%
+        ) !important;
+        color: white !important;
+        padding: 15px 25px !important;
+        text-align: center !important;
+        font-weight: 600 !important;
+        font-size: 18px !important;
+      }
+
+      .content {
+        padding: 30px !important;
+        background-color: #ffffff !important;
+      }
+
+      .order-info {
+        background-color: #f8f9fa !important;
+        border-radius: 10px !important;
+        padding: 25px !important;
+        margin-bottom: 25px !important;
+        border-left: 4px solid #ff6b35 !important;
+      }
+
+      .order-info h2 {
+        color: #2c3e50 !important;
+        font-size: 20px !important;
+        margin-bottom: 15px !important;
+      }
+
+      .order-details {
+        display: flex !important;
+        justify-content: space-between !important;
+        flex-wrap: wrap !important;
+        gap: 15px !important;
+      }
+
+      .detail-item {
+        flex: 1 !important;
+        min-width: 200px !important;
+      }
+
+      .detail-label {
+        font-weight: 600 !important;
+        color: #34495e !important;
+        font-size: 14px !important;
+        margin-bottom: 5px !important;
+      }
+
+      .detail-value {
+        color: #2c3e50 !important;
+        font-size: 16px !important;
+      }
+
+      .status-badge {
+        background: linear-gradient(
+          135deg,
+          #ff6b35 0%,
+          #f7931e 100%
+        ) !important;
+        color: white !important;
+        padding: 8px 16px !important;
+        border-radius: 20px !important;
+        font-weight: 600 !important;
+        font-size: 14px !important;
+        display: inline-block !important;
+      }
+
+      .products-section {
+        margin: 30px 0 !important;
+      }
+
+      .section-title {
+        color: #2c3e50 !important;
+        font-size: 20px !important;
+        font-weight: 600 !important;
+        margin-bottom: 20px !important;
+        border-bottom: 2px solid #ecf0f1 !important;
+        padding-bottom: 10px !important;
+      }
+
+      .product-item {
+        display: flex !important;
+        align-items: center !important;
+        padding: 20px !important;
+        border: 1px solid #ecf0f1 !important;
+        border-radius: 10px !important;
+        margin-bottom: 15px !important;
+        background-color: #fafafa !important;
+      }
+
+      .product-image {
+        width: 80px !important;
+        height: 80px !important;
+        background-color: #e9ecef !important;
+        border-radius: 8px !important;
+        margin-right: 20px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-size: 12px !important;
+        color: #6c757d !important;
+        text-align: center !important;
+      }
+
+      .product-details {
+        flex: 1 !important;
+      }
+
+      .product-name {
+        font-weight: 600 !important;
+        color: #2c3e50 !important;
+        font-size: 16px !important;
+        margin-bottom: 5px !important;
+      }
+
+      .product-info {
+        color: #7f8c8d !important;
+        font-size: 14px !important;
+        margin-bottom: 5px !important;
+      }
+
+      .product-price {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+      }
+
+      .price {
+        font-weight: 600 !important;
+        color: #e74c3c !important;
+        font-size: 16px !important;
+      }
+
+      .quantity {
+        color: #7f8c8d !important;
+        font-size: 14px !important;
+      }
+
+      .summary-section {
+        background-color: #f8f9fa !important;
+        border-radius: 10px !important;
+        padding: 25px !important;
+        margin: 25px 0 !important;
+      }
+
+      .summary-row {
+        display: flex !important;
+        justify-content: space-between !important;
+        margin-bottom: 10px !important;
+        padding: 5px 0 !important;
+      }
+
+      .summary-label {
+        color: #34495e !important;
+        font-size: 16px !important;
+      }
+
+      .summary-value {
+        color: #2c3e50 !important;
+        font-size: 16px !important;
+        font-weight: 500 !important;
+      }
+
+      .total-row {
+        border-top: 2px solid #ecf0f1 !important;
+        margin-top: 15px !important;
+        padding-top: 15px !important;
+      }
+
+      .total-row .summary-label,
+      .total-row .summary-value {
+        font-size: 18px !important;
+        font-weight: 700 !important;
+        color: #e74c3c !important;
+      }
+
+      .shipping-info {
+        background-color: #e8f4fd !important;
+        border: 1px solid #3498db !important;
+        border-radius: 10px !important;
+        padding: 20px !important;
+        margin: 25px 0 !important;
+      }
+
+      .shipping-info h3 {
+        color: #2980b9 !important;
+        font-size: 18px !important;
+        margin-bottom: 15px !important;
+      }
+
+      .address {
+        color: #34495e !important;
+        line-height: 1.6 !important;
+      }
+
+      .cta-section {
+        text-align: center !important;
+        margin: 30px 0 !important;
+      }
+
+      .track-button {
+        background: linear-gradient(
+          135deg,
+          #ff6b35 0%,
+          #f7931e 100%
+        ) !important;
+        color: white !important;
+        padding: 15px 30px !important;
+        text-decoration: none !important;
+        border-radius: 25px !important;
+        font-weight: 600 !important;
+        font-size: 16px !important;
+        display: inline-block !important;
+        margin: 10px !important;
+        transition: all 0.3s ease !important;
+      }
+
+      .support-info {
+        background-color: #fff3cd !important;
+        border: 1px solid #ffeaa7 !important;
+        border-radius: 10px !important;
+        padding: 20px !important;
+        margin: 25px 0 !important;
+        text-align: center !important;
+      }
+
+      .support-info h3 {
+        color: #856404 !important;
+        margin-bottom: 10px !important;
+      }
+
+      .support-info p {
+        color: #856404 !important;
+        margin-bottom: 5px !important;
+      }
+
+      .footer {
+        background-color: #f8f9fa !important;
+        padding: 30px !important;
+        text-align: center !important;
+        border-top: 1px solid #e9ecef !important;
+      }
+
+      .footer p {
+        color: #6c757d !important;
+        font-size: 14px !important;
+        margin-bottom: 10px !important;
+      }
+
+      .contact-info {
+        color: #495057 !important;
+        font-size: 14px !important;
+      }
+
+      .contact-info p {
+        color: #495057 !important;
+        font-size: 14px !important;
+        margin-bottom: 5px !important;
+      }
+
+      @media (max-width: 600px) {
+        body {
+          padding: 10px !important;
+        }
+
+        .container {
+          border-radius: 5px !important;
+        }
+
+        .header,
+        .content,
+        .footer {
+          padding: 20px !important;
+        }
+
+        .order-details {
+          flex-direction: column !important;
+        }
+
+        .product-item {
+          flex-direction: column !important;
+          text-align: center !important;
+        }
+
+        .product-image {
+          margin-right: 0 !important;
+          margin-bottom: 15px !important;
+        }
+
+        .product-price {
+          justify-content: center !important;
+          gap: 20px !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <!-- Header -->
+      <div class="header">
+        <div class="logo">SportX</div>
+        <h1>Xác nhận đơn hàng</h1>
+        <p>Cảm ơn bạn đã mua sắm tại SportX</p>
+      </div>
+
+      <!-- Success Badge -->
+      <div class="success-badge">✅ Đặt hàng thành công!</div>
+
+      <!-- Content -->
+      <div class="content">
+        <!-- Greeting -->
+        <p
+          style="
+            font-size: 18px !important;
+            color: #2c3e50 !important;
+            margin-bottom: 20px !important;
+          ">
+          Xin chào <strong th:text="${customerName}">Nguyễn Văn A</strong>,
+        </p>
+
+        <p style="color: #7f8c8d !important; margin-bottom: 25px !important">
+          Cảm ơn bạn đã đặt hàng tại SportX. Đơn hàng của bạn đã được xác nhận
+          và đang được xử lý.
+        </p>
+
+        <!-- Order Information -->
+        <div class="order-info">
+          <h2>Thông tin đơn hàng</h2>
+          <div class="order-details">
+            <div class="detail-item">
+              <div class="detail-label">Mã đơn hàng:</div>
+              <div class="detail-value" th:text="${orderCode}">
+                #SPX2024030001
+              </div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">Ngày đặt hàng:</div>
+              <div class="detail-value" th:text="${orderDate}">30/06/2025</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">Trạng thái:</div>
+              <div class="detail-value">
+                <span class="status-badge" th:text="${orderStatus}"
+                  >Đang xử lý</span
+                >
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Products Section -->
+        <div class="products-section">
+          <h2 class="section-title">Sản phẩm đã đặt</h2>
+
+          <!-- Product Item 1 -->
+          <div class="product-item">
+            <div class="product-image">
+              <div>Hình ảnh<br />sản phẩm</div>
+            </div>
+            <div class="product-details">
+              <div class="product-name" th:text="${product1.name}">
+                Giày Nike Air Max 270
+              </div>
+              <div class="product-info">
+                Size: <span th:text="${product1.size}">42</span> | Màu:
+                <span th:text="${product1.color}">Đen/Trắng</span>
+              </div>
+              <div class="product-price">
+                <span class="price" th:text="${product1.price}"
+                  >2.890.000₫</span
+                >
+                <span class="quantity"
+                  >Số lượng: <span th:text="${product1.quantity}">1</span></span
+                >
+              </div>
+            </div>
+          </div>
+
+          <!-- Product Item 2 -->
+          <div class="product-item">
+            <div class="product-image">
+              <div>Hình ảnh<br />sản phẩm</div>
+            </div>
+            <div class="product-details">
+              <div class="product-name" th:text="${product2.name}">
+                Áo thun Adidas Originals
+              </div>
+              <div class="product-info">
+                Size: <span th:text="${product2.size}">L</span> | Màu:
+                <span th:text="${product2.color}">Xanh Navy</span>
+              </div>
+              <div class="product-price">
+                <span class="price" th:text="${product2.price}">890.000₫</span>
+                <span class="quantity"
+                  >Số lượng: <span th:text="${product2.quantity}">2</span></span
+                >
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Order Summary -->
+        <div class="summary-section">
+          <h2 class="section-title">Tóm tắt đơn hàng</h2>
+          <div class="summary-row">
+            <span class="summary-label">Tạm tính:</span>
+            <span class="summary-value" th:text="${subtotal}">4.670.000₫</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-label">Phí vận chuyển:</span>
+            <span class="summary-value" th:text="${shippingFee}">30.000₫</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-label">Giảm giá:</span>
+            <span class="summary-value" th:text="${discount}">-200.000₫</span>
+          </div>
+          <div class="summary-row total-row">
+            <span class="summary-label">Tổng cộng:</span>
+            <span class="summary-value" th:text="${totalAmount}"
+              >4.500.000₫</span
+            >
+          </div>
+        </div>
+
+        <!-- Shipping Information -->
+        <div class="shipping-info">
+          <h3>📦 Thông tin giao hàng</h3>
+          <div class="address">
+            <strong th:text="${shippingName}">Nguyễn Văn A</strong><br />
+            <span th:text="${shippingPhone}">0912345678</span><br />
+            <span th:text="${shippingAddress}"
+              >123 Nguyễn Huệ, Quận 1, TP.HCM</span
+            ><br />
+            <strong>Dự kiến giao hàng:</strong>
+            <span th:text="${estimatedDelivery}">3-5 ngày làm việc</span>
+          </div>
+        </div>
+
+        <!-- CTA Section -->
+        <div class="cta-section">
+          <a href="#" class="track-button">🚚 Theo dõi đơn hàng</a>
+          <a href="#" class="track-button">🛍️ Tiếp tục mua sắm</a>
+        </div>
+
+        <!-- Support Information -->
+        <div class="support-info">
+          <h3>💬 Cần hỗ trợ?</h3>
+          <p>Liên hệ với chúng tôi qua hotline <strong>1900-xxxx</strong></p>
+          <p>hoặc email <strong>support@sportx.com</strong></p>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="footer">
+        <p><strong>SportX</strong> - Nơi thể thao gặp gỡ đam mê</p>
+        <div class="contact-info">
+          <p>📧 Email: support@sportx.com</p>
+          <p>📞 Hotline: 1900-xxxx</p>
+          <p>🌐 Website: www.sportx.com</p>
+          <p>📍 Địa chỉ: 123 Nguyễn Huệ, Quận 1, TP.HCM</p>
+        </div>
+        <p
+          style="
+            margin-top: 20px !important;
+            font-size: 12px !important;
+            color: #adb5bd !important;
+          ">
+          Email này được gửi tự động, vui lòng không trả lời email này.
+        </p>
+      </div>
+    </div>
+  </body>
+</html>

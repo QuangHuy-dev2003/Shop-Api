@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Voucher Khuyến Mãi - SportX</title>
+    <style>
+      * {
+        margin: 0 !important;
+        padding: 0 !important;
+        box-sizing: border-box !important;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif !important;
+        background-color: #f4f4f4 !important;
+        line-height: 1.6 !important;
+        margin: 0 !important;
+        padding: 20px !important;
+      }
+
+      .container {
+        max-width: 1200px !important;
+        margin: 0 auto !important;
+        background-color: #ffffff !important;
+        border-radius: 12px !important;
+        overflow: hidden !important;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1) !important;
+      }
+
+      .header {
+        background: linear-gradient(
+          135deg,
+          #1e3c72 0%,
+          #2a5298 100%
+        ) !important;
+        color: white !important;
+        padding: 35px 30px !important;
+        text-align: center !important;
+        position: relative !important;
+        overflow: hidden !important;
+      }
+
+      .header::before {
+        content: "" !important;
+        position: absolute !important;
+        top: -50% !important;
+        left: -50% !important;
+        width: 200% !important;
+        height: 200% !important;
+        background: radial-gradient(
+          circle,
+          rgba(255, 255, 255, 0.1) 0%,
+          transparent 70%
+        ) !important;
+        animation: headerShimmer 4s ease-in-out infinite !important;
+      }
+
+      @keyframes headerShimmer {
+        0%,
+        100% {
+          transform: rotate(0deg);
+          opacity: 0.3;
+        }
+        50% {
+          transform: rotate(180deg);
+          opacity: 0.6;
+        }
+      }
+
+      .header .logo {
+        font-size: 28px !important;
+        font-weight: 700 !important;
+        margin-bottom: 15px !important;
+        color: white !important;
+        position: relative !important;
+        z-index: 2 !important;
+      }
+
+      .header h1 {
+        font-size: 26px !important;
+        margin-bottom: 10px !important;
+        font-weight: 600 !important;
+        color: white !important;
+        position: relative !important;
+        z-index: 2 !important;
+      }
+
+      .header p {
+        font-size: 16px !important;
+        opacity: 0.9 !important;
+        color: white !important;
+        position: relative !important;
+        z-index: 2 !important;
+      }
+
+      .content {
+        padding: 40px 30px !important;
+        background-color: #ffffff !important;
+      }
+
+      .greeting {
+        font-size: 18px !important;
+        color: #2c3e50 !important;
+        margin-bottom: 25px !important;
+        text-align: center !important;
+      }
+
+      .message {
+        font-size: 16px !important;
+        color: #7f8c8d !important;
+        margin-bottom: 30px !important;
+        line-height: 1.8 !important;
+        text-align: center !important;
+        max-width: 800px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+      }
+
+      /* VOUCHER GRID LAYOUT */
+      .vouchers-grid {
+        display: grid !important;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)) !important;
+        gap: 25px !important;
+        margin: 40px 0 !important;
+        max-width: 1100px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+      }
+
+      /* Responsive grid cho số voucher khác nhau */
+      .vouchers-grid.grid-2 {
+        grid-template-columns: repeat(2, 1fr) !important;
+        max-width: 700px !important;
+      }
+
+      .vouchers-grid.grid-4 {
+        grid-template-columns: repeat(2, 1fr) !important;
+        max-width: 900px !important;
+      }
+
+      .vouchers-grid.grid-6 {
+        grid-template-columns: repeat(3, 1fr) !important;
+        max-width: 1100px !important;
+      }
+
+      .voucher-card {
+        background: linear-gradient(
+          135deg,
+          #27ae60 0%,
+          #2ecc71 100%
+        ) !important;
+        border-radius: 20px !important;
+        padding: 30px 25px !important;
+        text-align: center !important;
+        position: relative !important;
+        overflow: hidden !important;
+        border: 3px dashed rgba(255, 255, 255, 0.3) !important;
+        transition: all 0.3s ease !important;
+        cursor: pointer !important;
+        min-height: 280px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: space-between !important;
+      }
+
+      /* Màu sắc khác nhau cho từng voucher */
+      .voucher-card.green {
+        background: linear-gradient(
+          135deg,
+          #27ae60 0%,
+          #2ecc71 100%
+        ) !important;
+      }
+
+      .voucher-card.blue {
+        background: linear-gradient(
+          135deg,
+          #3498db 0%,
+          #5dade2 100%
+        ) !important;
+      }
+
+      .voucher-card.orange {
+        background: linear-gradient(
+          135deg,
+          #ff6b35 0%,
+          #f7931e 100%
+        ) !important;
+      }
+
+      .voucher-card.purple {
+        background: linear-gradient(
+          135deg,
+          #8e44ad 0%,
+          #a569bd 100%
+        ) !important;
+      }
+
+      .voucher-card.red {
+        background: linear-gradient(
+          135deg,
+          #e74c3c 0%,
+          #ec7063 100%
+        ) !important;
+      }
+
+      .voucher-card.teal {
+        background: linear-gradient(
+          135deg,
+          #16a085 0%,
+          #48c9b0 100%
+        ) !important;
+      }
+
+      .voucher-card:hover {
+        transform: translateY(-8px) scale(1.02) !important;
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2) !important;
+      }
+
+      .voucher-card::before {
+        content: "" !important;
+        position: absolute !important;
+        top: -50% !important;
+        left: -50% !important;
+        width: 200% !important;
+        height: 200% !important;
+        background: radial-gradient(
+          circle,
+          rgba(255, 255, 255, 0.1) 0%,
+          transparent 70%
+        ) !important;
+        animation: voucherShimmer 3s ease-in-out infinite !important;
+      }
+
+      @keyframes voucherShimmer {
+        0%,
+        100% {
+          transform: rotate(0deg);
+          opacity: 0.5;
+        }
+        50% {
+          transform: rotate(180deg);
+          opacity: 0.8;
+        }
+      }
+
+      .voucher-header {
+        position: relative !important;
+        z-index: 2 !important;
+      }
+
+      .voucher-icon {
+        font-size: 32px !important;
+        margin-bottom: 15px !important;
+        color: white !important;
+        display: block !important;
+      }
+
+      .voucher-title {
+        color: white !important;
+        font-size: 16px !important;
+        margin-bottom: 15px !important;
+        font-weight: 600 !important;
+        text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3) !important;
+      }
+
+      .voucher-body {
+        position: relative !important;
+        z-index: 2 !important;
+        flex-grow: 1 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: center !important;
+      }
+
+      .voucher-code {
+        font-size: 24px !important;
+        font-weight: 700 !important;
+        color: white !important;
+        letter-spacing: 2px !important;
+        text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.3) !important;
+        margin-bottom: 15px !important;
+        background-color: rgba(255, 255, 255, 0.15) !important;
+        padding: 12px 20px !important;
+        border-radius: 10px !important;
+        backdrop-filter: blur(10px) !important;
+        word-break: break-all !important;
+      }
+
+      .voucher-discount {
+        color: white !important;
+        font-size: 20px !important;
+        font-weight: 700 !important;
+        margin-bottom: 10px !important;
+        text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3) !important;
+      }
+
+      .voucher-footer {
+        position: relative !important;
+        z-index: 2 !important;
+      }
+
+      .voucher-validity {
+        color: white !important;
+        font-size: 12px !important;
+        opacity: 0.9 !important;
+        margin-bottom: 8px !important;
+      }
+
+      .voucher-condition {
+        color: white !important;
+        font-size: 11px !important;
+        opacity: 0.8 !important;
+        font-style: italic !important;
+      }
+
+      /* CTA Section */
+      .cta-section {
+        background: linear-gradient(
+          135deg,
+          #ff6b35 0%,
+          #f7931e 100%
+        ) !important;
+        border-radius: 15px !important;
+        padding: 35px 30px !important;
+        text-align: center !important;
+        margin: 40px 0 !important;
+      }
+
+      .cta-title {
+        color: white !important;
+        font-size: 28px !important;
+        font-weight: 700 !important;
+        margin-bottom: 15px !important;
+      }
+
+      .cta-subtitle {
+        color: white !important;
+        font-size: 16px !important;
+        margin-bottom: 25px !important;
+        opacity: 0.9 !important;
+      }
+
+      .shop-button {
+        background: rgba(255, 255, 255, 0.2) !important;
+        color: white !important;
+        padding: 15px 40px !important;
+        text-decoration: none !important;
+        border-radius: 30px !important;
+        font-weight: 600 !important;
+        font-size: 18px !important;
+        display: inline-block !important;
+        margin: 10px !important;
+        transition: all 0.3s ease !important;
+        border: 2px solid rgba(255, 255, 255, 0.3) !important;
+        backdrop-filter: blur(10px) !important;
+      }
+
+      .shop-button:hover {
+        background: rgba(255, 255, 255, 0.3) !important;
+        transform: translateY(-2px) !important;
+      }
+
+      .footer {
+        background-color: #f8f9fa !important;
+        padding: 30px !important;
+        text-align: center !important;
+        border-top: 1px solid #e9ecef !important;
+      }
+
+      .footer p {
+        color: #6c757d !important;
+        font-size: 14px !important;
+        margin-bottom: 10px !important;
+      }
+
+      .contact-info {
+        color: #495057 !important;
+        font-size: 14px !important;
+      }
+
+      .contact-info p {
+        color: #495057 !important;
+        font-size: 14px !important;
+        margin-bottom: 5px !important;
+      }
+
+      /* Responsive Design */
+      @media (max-width: 768px) {
+        body {
+          padding: 10px !important;
+        }
+
+        .container {
+          border-radius: 8px !important;
+        }
+
+        .vouchers-grid,
+        .vouchers-grid.grid-2,
+        .vouchers-grid.grid-4,
+        .vouchers-grid.grid-6 {
+          grid-template-columns: 1fr !important;
+          gap: 20px !important;
+          max-width: 100% !important;
+        }
+
+        .voucher-card {
+          min-height: 250px !important;
+          padding: 25px 20px !important;
+        }
+
+        .voucher-code {
+          font-size: 20px !important;
+          letter-spacing: 1px !important;
+        }
+
+        .header,
+        .content {
+          padding: 25px 20px !important;
+        }
+
+        .cta-title {
+          font-size: 24px !important;
+        }
+      }
+
+      @media (min-width: 769px) and (max-width: 1024px) {
+        .vouchers-grid.grid-6 {
+          grid-template-columns: repeat(2, 1fr) !important;
+        }
+      }
+
+      @media (min-width: 1025px) {
+        .vouchers-grid.grid-4 {
+          grid-template-columns: repeat(2, 1fr) !important;
+        }
+
+        .vouchers-grid.grid-6 {
+          grid-template-columns: repeat(3, 1fr) !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <!-- Header -->
+      <div class="header">
+        <div class="logo">SportX</div>
+        <h1>🎁 Voucher Hot Trong Tuần!</h1>
+        <p>Nhiều voucher hấp dẫn đang chờ bạn</p>
+      </div>
+
+      <!-- Content -->
+      <div class="content">
+        <!-- Greeting -->
+        <div class="greeting">Xin chào <strong>Nguyễn Văn A</strong>! 👋</div>
+
+        <!-- Message -->
+        <div class="message">
+          Chúng tôi có <strong>6 voucher HOT</strong> dành riêng cho bạn! Mỗi
+          voucher áp dụng cho các danh mục sản phẩm khác nhau. Hãy chọn voucher
+          phù hợp và mua sắm ngay hôm nay!
+        </div>
+
+        <!-- Vouchers Grid - 6 vouchers -->
+        <div class="vouchers-grid grid-6">
+          <!-- Voucher 1 - Quần áo -->
+          <div class="voucher-card green">
+            <div class="voucher-header">
+              <div class="voucher-icon">👕</div>
+              <div class="voucher-title">QUẦN ÁO THỂ THAO</div>
+            </div>
+            <div class="voucher-body">
+              <div class="voucher-code">CLOTHES20</div>
+              <div class="voucher-discount">GIẢM 20%</div>
+            </div>
+            <div class="voucher-footer">
+              <div class="voucher-validity">HSD: 31/12/2025</div>
+              <div class="voucher-condition">Đơn từ 500k</div>
+            </div>
+          </div>
+
+          <!-- Voucher 2 - Giày -->
+          <div class="voucher-card blue">
+            <div class="voucher-header">
+              <div class="voucher-icon">👟</div>
+              <div class="voucher-title">GIÀY THỂ THAO</div>
+            </div>
+            <div class="voucher-body">
+              <div class="voucher-code">SHOES25</div>
+              <div class="voucher-discount">GIẢM 25%</div>
+            </div>
+            <div class="voucher-footer">
+              <div class="voucher-validity">HSD: 28/12/2025</div>
+              <div class="voucher-condition">Đơn từ 800k</div>
+            </div>
+          </div>
+
+          <!-- Voucher 3 - Phụ kiện -->
+          <div class="voucher-card orange">
+            <div class="voucher-header">
+              <div class="voucher-icon">🎒</div>
+              <div class="voucher-title">PHỤ KIỆN THỂ THAO</div>
+            </div>
+            <div class="voucher-body">
+              <div class="voucher-code">ACCESS15</div>
+              <div class="voucher-discount">GIẢM 15%</div>
+            </div>
+            <div class="voucher-footer">
+              <div class="voucher-validity">HSD: 30/12/2025</div>
+              <div class="voucher-condition">Đơn từ 300k</div>
+            </div>
+          </div>
+
+          <!-- Voucher 4 - Combo -->
+          <div class="voucher-card purple">
+            <div class="voucher-header">
+              <div class="voucher-icon">🛍️</div>
+              <div class="voucher-title">COMBO ĐẶC BIỆT</div>
+            </div>
+            <div class="voucher-body">
+              <div class="voucher-code">COMBO30</div>
+              <div class="voucher-discount">GIẢM 30%</div>
+            </div>
+            <div class="voucher-footer">
+              <div class="voucher-validity">HSD: 25/12/2025</div>
+              <div class="voucher-condition">Mua từ 2 SP</div>
+            </div>
+          </div>
+
+          <!-- Voucher 5 - Free Ship -->
+          <div class="voucher-card red">
+            <div class="voucher-header">
+              <div class="voucher-icon">🚚</div>
+              <div class="voucher-title">MIỄN PHÍ VẬN CHUYỂN</div>
+            </div>
+            <div class="voucher-body">
+              <div class="voucher-code">FREESHIP</div>
+              <div class="voucher-discount">0Đ SHIP</div>
+            </div>
+            <div class="voucher-footer">
+              <div class="voucher-validity">HSD: 31/12/2025</div>
+              <div class="voucher-condition">Đơn từ 200k</div>
+            </div>
+          </div>
+
+          <!-- Voucher 6 - VIP -->
+          <div class="voucher-card teal">
+            <div class="voucher-header">
+              <div class="voucher-icon">👑</div>
+              <div class="voucher-title">KHÁCH HÀNG VIP</div>
+            </div>
+            <div class="voucher-body">
+              <div class="voucher-code">VIP50</div>
+              <div class="voucher-discount">GIẢM 50%</div>
+            </div>
+            <div class="voucher-footer">
+              <div class="voucher-validity">HSD: 24/12/2025</div>
+              <div class="voucher-condition">Đơn từ 2tr</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CTA Section -->
+        <div class="cta-section">
+          <div class="cta-title">🛒 Sử Dụng Voucher Ngay!</div>
+          <div class="cta-subtitle">
+            Chọn voucher phù hợp và bắt đầu mua sắm
+          </div>
+          <a href="#" class="shop-button">🏃‍♂️ Mua Ngay</a>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="footer">
+        <p><strong>SportX</strong> - Nơi thể thao gặp gỡ đam mê</p>
+        <div class="contact-info">
+          <p>📧 Email: support@sportx.com</p>
+          <p>📞 Hotline: 1900-xxxx</p>
+          <p>🌐 Website: www.sportx.com</p>
+          <p>🎁 Khuyến mãi: promotion@sportx.com</p>
+        </div>
+        <p
+          style="
+            margin-top: 20px !important;
+            font-size: 12px !important;
+            color: #adb5bd !important;
+          ">
+          Email khuyến mãi được gửi tự động. Bạn có thể hủy đăng ký nhận email
+          khuyến mãi bất cứ lúc nào.
+        </p>
+      </div>
+    </div>
+  </body>
+</html>

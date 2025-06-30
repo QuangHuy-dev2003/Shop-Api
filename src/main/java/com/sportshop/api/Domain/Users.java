@@ -32,11 +32,18 @@ public class Users {
     @Column(name = "phone", length = 20)
     private String phone;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "gender", nullable = false, length = 20)
+    private Gender gender;
+
     @Column(name = "role_id")
     private Long roleId;
 
     @Column(name = "first_login", nullable = false)
     private Boolean firstLogin = true;
+
+    @Column(name = "active", nullable = false)
+    private Boolean active = false;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -84,5 +91,11 @@ public class Users {
     public enum Provider {
         DEFAULT,
         GOOGLE
+    }
+
+    public enum Gender {
+        MALE,
+        FEMALE,
+        OTHER
     }
 }
