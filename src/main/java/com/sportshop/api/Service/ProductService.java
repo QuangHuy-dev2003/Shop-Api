@@ -254,21 +254,51 @@ public class ProductService {
         return response;
     }
 
-    // Overloaded method to allow calling with just Products product
+    // Chuyển đổi Products thành ProductResponse
     private ProductResponse convertToProductResponse(Products product) {
         // Fetch images from DB
         List<Product_images> images = productImageRepository.findByProductId(product.getId());
         List<String> imageUrls = images.stream().map(Product_images::getImageUrl).collect(Collectors.toList());
         // Fetch variants from DB
         List<Product_variants> variants = productVariantsRepository.findByProductId(product.getId());
-        List<CreateProductRequest.ProductVariantRequest> variantRequests = variants.stream().map(variant -> {
-            CreateProductRequest.ProductVariantRequest req = new CreateProductRequest.ProductVariantRequest();
-            req.setSize(variant.getSize());
-            req.setColor(variant.getColor());
-            req.setStockQuantity(variant.getStockQuantity());
-            req.setPrice(variant.getPrice());
-            return req;
+        List<ProductResponse.ProductVariantResponse> variantResponses = variants.stream().map(variant -> {
+            ProductResponse.ProductVariantResponse resp = new ProductResponse.ProductVariantResponse();
+            resp.setId(variant.getId());
+            resp.setSize(variant.getSize().name());
+            resp.setColor(variant.getColor());
+            resp.setStockQuantity(variant.getStockQuantity());
+            resp.setPrice(variant.getPrice());
+            return resp;
         }).collect(Collectors.toList());
-        return convertToProductResponse(product, imageUrls, variantRequests);
+        // Build response
+        ProductResponse response = new ProductResponse();
+        response.setId(product.getId());
+        response.setName(product.getName());
+        response.setDescription(product.getDescription());
+        response.setPrice(product.getPrice());
+        response.setSale(product.getSale());
+        response.setSalePrice(product.getSalePrice());
+        response.setIsActive(product.getIsActive());
+        response.setImageUrl(product.getImageUrl());
+        response.setCreatedAt(product.getCreatedAt());
+        response.setAdditionalImages(imageUrls);
+        // Set category, brand
+        if (product.getCategory() != null) {
+            ProductResponse.CategoryResponse categoryResponse = new ProductResponse.CategoryResponse();
+            categoryResponse.setId(product.getCategory().getId());
+            categoryResponse.setName(product.getCategory().getName());
+            categoryResponse.setDescription(product.getCategory().getDescription());
+            response.setCategory(categoryResponse);
+        }
+        if (product.getBrand() != null) {
+            ProductResponse.BrandResponse brandResponse = new ProductResponse.BrandResponse();
+            brandResponse.setId(product.getBrand().getId());
+            brandResponse.setName(product.getBrand().getName());
+            brandResponse.setDescription(product.getBrand().getDescription());
+            brandResponse.setLogoUrl(product.getBrand().getLogoUrl());
+            response.setBrand(brandResponse);
+        }
+        response.setVariants(variantResponses);
+        return response;
     }
 }

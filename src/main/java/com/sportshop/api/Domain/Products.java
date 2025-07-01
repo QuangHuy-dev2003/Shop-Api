@@ -73,6 +73,12 @@ public class Products {
     @JsonIgnore
     private List<Cart_item> cart_items;
 
+    /**
+     * Số lượng tồn kho sản phẩm (nếu không có variant)
+     */
+    @Column(name = "stock_quantity")
+    private Integer stockQuantity;
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();

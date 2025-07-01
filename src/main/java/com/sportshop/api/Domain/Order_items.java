@@ -41,9 +41,6 @@ public class Order_items {
     @Column(name = "product_name", length = 200)
     private String productName;
 
-    @Column(name = "product_sku", length = 100)
-    private String productSKU;
-
     @Column(name = "size", length = 10)
     private String size;
 
