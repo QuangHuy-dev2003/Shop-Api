@@ -223,6 +223,7 @@
         color: #2c3e50 !important;
         font-size: 16px !important;
         font-weight: 500 !important;
+        margin-left: 5px !important;
       }
 
       .total-row {
@@ -379,9 +380,8 @@
             color: #2c3e50 !important;
             margin-bottom: 20px !important;
           ">
-          Xin chào <strong th:text="${customerName}">Nguyễn Văn A</strong>,
+          Xin chào <strong th:text="${fullName}">Khách hàng</strong>,
         </p>
-
         <p style="color: #7f8c8d !important; margin-bottom: 25px !important">
           Cảm ơn bạn đã đặt hàng tại SportX. Đơn hàng của bạn đã được xác nhận
           và đang được xử lý.
@@ -393,20 +393,18 @@
           <div class="order-details">
             <div class="detail-item">
               <div class="detail-label">Mã đơn hàng:</div>
-              <div class="detail-value" th:text="${orderCode}">
-                #SPX2024030001
-              </div>
+              <div class="detail-value" th:text="${orderId}">VNSPX0000001</div>
             </div>
             <div class="detail-item">
               <div class="detail-label">Ngày đặt hàng:</div>
-              <div class="detail-value" th:text="${orderDate}">30/06/2025</div>
+              <div class="detail-value" th:text="${orderDate}">
+                01/07/2024 14:00:00
+              </div>
             </div>
             <div class="detail-item">
               <div class="detail-label">Trạng thái:</div>
               <div class="detail-value">
-                <span class="status-badge" th:text="${orderStatus}"
-                  >Đang xử lý</span
-                >
+                <span class="status-badge">Đang xử lý</span>
               </div>
             </div>
           </div>
@@ -415,89 +413,113 @@
         <!-- Products Section -->
         <div class="products-section">
           <h2 class="section-title">Sản phẩm đã đặt</h2>
-
-          <!-- Product Item 1 -->
-          <div class="product-item">
-            <div class="product-image">
-              <div>Hình ảnh<br />sản phẩm</div>
-            </div>
-            <div class="product-details">
-              <div class="product-name" th:text="${product1.name}">
-                Giày Nike Air Max 270
-              </div>
-              <div class="product-info">
-                Size: <span th:text="${product1.size}">42</span> | Màu:
-                <span th:text="${product1.color}">Đen/Trắng</span>
-              </div>
-              <div class="product-price">
-                <span class="price" th:text="${product1.price}"
-                  >2.890.000₫</span
-                >
-                <span class="quantity"
-                  >Số lượng: <span th:text="${product1.quantity}">1</span></span
-                >
-              </div>
-            </div>
-          </div>
-
-          <!-- Product Item 2 -->
-          <div class="product-item">
-            <div class="product-image">
-              <div>Hình ảnh<br />sản phẩm</div>
-            </div>
-            <div class="product-details">
-              <div class="product-name" th:text="${product2.name}">
-                Áo thun Adidas Originals
-              </div>
-              <div class="product-info">
-                Size: <span th:text="${product2.size}">L</span> | Màu:
-                <span th:text="${product2.color}">Xanh Navy</span>
-              </div>
-              <div class="product-price">
-                <span class="price" th:text="${product2.price}">890.000₫</span>
-                <span class="quantity"
-                  >Số lượng: <span th:text="${product2.quantity}">2</span></span
-                >
-              </div>
-            </div>
-          </div>
+          <table
+            style="border-collapse: collapse; width: 100%; margin-top: 10px">
+            <thead>
+              <tr>
+                <th style="border: 1px solid #ccc; padding: 8px">Hình ảnh</th>
+                <th style="border: 1px solid #ccc; padding: 8px">
+                  Tên sản phẩm
+                </th>
+                <th style="border: 1px solid #ccc; padding: 8px">Kích thước</th>
+                <th style="border: 1px solid #ccc; padding: 8px">Màu sắc</th>
+                <th style="border: 1px solid #ccc; padding: 8px">Số lượng</th>
+                <th style="border: 1px solid #ccc; padding: 8px">Đơn giá</th>
+                <th style="border: 1px solid #ccc; padding: 8px">Thành tiền</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr th:each="item : ${items}">
+                <td
+                  style="
+                    border: 1px solid #eee;
+                    padding: 8px;
+                    text-align: center;
+                  ">
+                  <img th:src="${item.imageUrl}" width="60" height="60" />
+                </td>
+                <td
+                  style="border: 1px solid #eee; padding: 8px"
+                  th:text="${item.productName}"></td>
+                <td
+                  style="border: 1px solid #eee; padding: 8px"
+                  th:text="${item.size}"></td>
+                <td
+                  style="border: 1px solid #eee; padding: 8px"
+                  th:text="${item.color}"></td>
+                <td
+                  style="
+                    border: 1px solid #eee;
+                    padding: 8px;
+                    text-align: center;
+                  "
+                  th:text="${item.quantity}"></td>
+                <td
+                  style="
+                    border: 1px solid #eee;
+                    padding: 8px;
+                    text-align: right;
+                  ">
+                  <span
+                    style="margin-right: 5px"
+                    th:text="${#numbers.formatDecimal(item.unitPrice, 0, 'COMMA', 0, 'POINT')}"></span
+                  ><span>VNĐ</span>
+                </td>
+                <td
+                  style="
+                    border: 1px solid #eee;
+                    padding: 8px;
+                    text-align: right;
+                  ">
+                  <span
+                    style="margin-right: 5px"
+                    th:text="${#numbers.formatDecimal(item.subtotal, 0, 'COMMA', 0, 'POINT')}"></span
+                  ><span>VNĐ</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
         <!-- Order Summary -->
-        <div class="summary-section">
-          <h2 class="section-title">Tóm tắt đơn hàng</h2>
-          <div class="summary-row">
-            <span class="summary-label">Tạm tính:</span>
-            <span class="summary-value" th:text="${subtotal}">4.670.000₫</span>
+        <div class="order-summary" style="margin-top: 20px">
+          <h2>Tóm tắt đơn hàng</h2>
+          <div style="margin-bottom: 5px">
+            <span>Tạm tính:</span>
+            <span
+              style="margin-left: 10px; font-weight: bold"
+              th:text="${#numbers.formatDecimal(totalAmount + discountAmount - shippingFee + shippingDiscount, 0, 'COMMA', 0, 'POINT')} + ' VNĐ'"></span>
           </div>
-          <div class="summary-row">
-            <span class="summary-label">Phí vận chuyển:</span>
-            <span class="summary-value" th:text="${shippingFee}">30.000₫</span>
+          <div style="margin-bottom: 5px">
+            <span>Giảm giá:</span>
+            <span
+              style="margin-left: 10px; color: #e53935"
+              th:text="'-' + ${#numbers.formatDecimal(discountAmount, 0, 'COMMA', 0, 'POINT')} + ' VNĐ'"></span>
           </div>
-          <div class="summary-row">
-            <span class="summary-label">Giảm giá:</span>
-            <span class="summary-value" th:text="${discount}">-200.000₫</span>
+          <div style="margin-bottom: 5px">
+            <span>Phí vận chuyển:</span>
+            <span
+              style="margin-left: 10px"
+              th:text="${#numbers.formatDecimal(shippingFee, 0, 'COMMA', 0, 'POINT')} + ' VNĐ'"></span>
           </div>
-          <div class="summary-row total-row">
-            <span class="summary-label">Tổng cộng:</span>
-            <span class="summary-value" th:text="${totalAmount}"
-              >4.500.000₫</span
-            >
+          <div style="margin-bottom: 5px">
+            <span>Giảm giá vận chuyển:</span>
+            <span
+              style="margin-left: 10px; color: #e53935"
+              th:text="'-' + ${#numbers.formatDecimal(shippingDiscount, 0, 'COMMA', 0, 'POINT')} + ' VNĐ'"></span>
+          </div>
+          <div style="margin-top: 10px; font-size: 18px; font-weight: bold">
+            <span>Tổng cộng:</span>
+            <span
+              style="margin-left: 10px; color: #388e3c"
+              th:text="${#numbers.formatDecimal(totalAmount, 0, 'COMMA', 0, 'POINT')} + ' VNĐ'"></span>
           </div>
         </div>
 
         <!-- Shipping Information -->
         <div class="shipping-info">
-          <h3>📦 Thông tin giao hàng</h3>
-          <div class="address">
-            <strong th:text="${shippingName}">Nguyễn Văn A</strong><br />
-            <span th:text="${shippingPhone}">0912345678</span><br />
-            <span th:text="${shippingAddress}"
-              >123 Nguyễn Huệ, Quận 1, TP.HCM</span
-            ><br />
-            <strong>Dự kiến giao hàng:</strong>
-            <span th:text="${estimatedDelivery}">3-5 ngày làm việc</span>
-          </div>
+          <h2>Thông tin giao hàng</h2>
+          <div th:text="${shippingAddressFull}"></div>
         </div>
 
         <!-- CTA Section -->

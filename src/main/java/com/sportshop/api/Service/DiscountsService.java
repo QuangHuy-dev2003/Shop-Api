@@ -50,6 +50,14 @@ public class DiscountsService {
     }
 
     /**
+     * Lấy entity Discounts từ code
+     */
+    public Discounts getDiscountEntityByCode(String code) {
+        return discountsRepository.findByCode(code)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy mã giảm giá với code: " + code));
+    }
+
+    /**
      * Tạo mới mã giảm giá
      */
     @Transactional

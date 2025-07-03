@@ -15,4 +15,6 @@ public class CartResponse {
     private List<CartItemResponse> items;
     private Integer totalQuantity;
     private BigDecimal totalPrice;
+    private String discountCode;
+    private java.math.BigDecimal discountAmount;
 }

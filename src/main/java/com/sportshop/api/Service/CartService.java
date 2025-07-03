@@ -13,6 +13,8 @@ import java.util.stream.Collectors;
 import com.sportshop.api.Domain.Request.Cart.AddOrUpdateCartItemRequest;
 import com.sportshop.api.Domain.Reponse.Cart.CartItemResponse;
 import com.sportshop.api.Domain.Reponse.Cart.CartResponse;
+import com.sportshop.api.Service.DiscountsService;
+import com.sportshop.api.Domain.Reponse.Discounts.DiscountResponse;
 
 @Service
 public class CartService {
@@ -21,17 +23,20 @@ public class CartService {
     private final UserRepository userRepository;
     private final ProductRepository productRepository;
     private final ProductVariantsRepository productVariantsRepository;
+    private final DiscountsService discountsService;
 
     public CartService(CartRepository cartRepository,
             CartItemRepository cartItemRepository,
             UserRepository userRepository,
             ProductRepository productRepository,
-            ProductVariantsRepository productVariantsRepository) {
+            ProductVariantsRepository productVariantsRepository,
+            DiscountsService discountsService) {
         this.cartRepository = cartRepository;
         this.cartItemRepository = cartItemRepository;
         this.userRepository = userRepository;
         this.productRepository = productRepository;
         this.productVariantsRepository = productVariantsRepository;
+        this.discountsService = discountsService;
     }
 
     /**
@@ -76,7 +81,9 @@ public class CartService {
                 cart.getUser().getId(),
                 itemResponses,
                 cart.getTotalQuantity() != null ? cart.getTotalQuantity() : 0,
-                cart.getTotalPrice() != null ? cart.getTotalPrice() : BigDecimal.ZERO);
+                cart.getTotalPrice() != null ? cart.getTotalPrice() : BigDecimal.ZERO,
+                null,
+                null);
     }
 
     /**
@@ -159,17 +166,18 @@ public class CartService {
      * @param cart Cart cần cập nhật
      */
     private void updateCartTotals(Cart cart) {
-        if (cart.getCartItems() == null || cart.getCartItems().isEmpty()) {
+        List<Cart_item> items = cartItemRepository.findByCart(cart); // luôn lấy mới từ DB
+        if (items == null || items.isEmpty()) {
             cart.setTotalQuantity(0);
             cart.setTotalPrice(BigDecimal.ZERO);
         } else {
-            // Tổng số sản phẩm khác nhau (distinct productId trong cart)
-            long totalQuantity = cart.getCartItems().stream()
+            // Số sản phẩm khác nhau (distinct productId)
+            long totalQuantity = items.stream()
                     .map(Cart_item::getProduct)
                     .map(Products::getId)
                     .distinct()
                     .count();
-            BigDecimal totalPrice = cart.getCartItems().stream()
+            BigDecimal totalPrice = items.stream()
                     .map(i -> i.getUnitPrice().multiply(BigDecimal.valueOf(i.getQuantity())))
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
             cart.setTotalQuantity((int) totalQuantity);
@@ -238,5 +246,45 @@ public class CartService {
     public void deleteCart(Long userId) {
         Users user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
         cartRepository.deleteByUser(user);
+    }
+
+    // Lấy danh sách mã giảm giá có thể áp dụng cho giỏ hàng của user
+    public List<DiscountResponse> getAvailableDiscountsForCart(Long userId) {
+        Cart cart = getCartByUserId(userId);
+        BigDecimal orderAmount = cart.getTotalPrice() != null ? cart.getTotalPrice() : BigDecimal.ZERO;
+        // Lấy tất cả mã giảm giá
+        List<DiscountResponse> allDiscounts = discountsService.getAllDiscounts();
+        // Lọc các mã hợp lệ với giỏ hàng hiện tại
+        return allDiscounts.stream()
+                .map(d -> discountsService.validateDiscountCode(d.getCode(), orderAmount))
+                .filter(DiscountResponse::getIsValid)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    // Áp dụng mã giảm giá cho giỏ hàng
+    public CartResponse applyDiscountToCart(Long userId, String discountCode) {
+        Cart cart = getCartByUserId(userId);
+        BigDecimal orderAmount = cart.getTotalPrice() != null ? cart.getTotalPrice() : BigDecimal.ZERO;
+        DiscountResponse discount = discountsService.validateDiscountCode(discountCode, orderAmount);
+        if (!discount.getIsValid()) {
+            throw new RuntimeException(discount.getStatusMessage());
+        }
+        // Tính lại tổng tiền sau khi áp dụng mã giảm giá
+        BigDecimal discountAmount = BigDecimal.ZERO;
+        if (discount.getDiscountType() == com.sportshop.api.Domain.Discounts.DiscountType.PERCENTAGE) {
+            discountAmount = orderAmount.multiply(discount.getDiscountValue()).divide(BigDecimal.valueOf(100));
+        } else if (discount.getDiscountType() == com.sportshop.api.Domain.Discounts.DiscountType.FIXED_AMOUNT) {
+            discountAmount = discount.getDiscountValue();
+        }
+        if (discountAmount.compareTo(orderAmount) > 0) {
+            discountAmount = orderAmount;
+        }
+        BigDecimal newTotal = orderAmount.subtract(discountAmount);
+        // Trả về CartResponse với tổng tiền mới và thông tin mã giảm giá đã áp dụng
+        CartResponse response = getCartResponseByUserId(userId);
+        response.setTotalPrice(newTotal);
+        response.setDiscountCode(discountCode);
+        response.setDiscountAmount(discountAmount);
+        return response;
     }
 }

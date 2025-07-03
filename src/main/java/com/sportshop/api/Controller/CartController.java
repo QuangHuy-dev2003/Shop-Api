@@ -5,6 +5,8 @@ import com.sportshop.api.Domain.Reponse.Cart.CartItemResponse;
 import com.sportshop.api.Domain.Reponse.Cart.CartResponse;
 import com.sportshop.api.Domain.Reponse.ApiResponse;
 import com.sportshop.api.Service.CartService;
+import com.sportshop.api.Domain.Reponse.Discounts.DiscountResponse;
+import com.sportshop.api.Domain.Request.Cart.ApplyDiscountRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
@@ -116,6 +118,34 @@ public class CartController {
     public ResponseEntity<ApiResponse<String>> deleteCart(@PathVariable Long userId) {
         cartService.deleteCart(userId);
         return ResponseEntity.ok(ApiResponse.success("Xóa giỏ hàng thành công"));
+    }
+
+    /**
+     * Lấy danh sách mã giảm giá có thể áp dụng cho giỏ hàng của người dùng
+     * 
+     * @param userId ID người dùng
+     * @return Danh sách mã giảm giá hợp lệ
+     */
+    @GetMapping("/cart/{userId}/available-discounts")
+    public ResponseEntity<ApiResponse<List<DiscountResponse>>> getAvailableDiscounts(@PathVariable Long userId) {
+        List<DiscountResponse> discounts = cartService.getAvailableDiscountsForCart(userId);
+        return ResponseEntity
+                .ok(ApiResponse.success(discounts, "Lấy danh sách mã giảm giá áp dụng được cho giỏ hàng thành công"));
+    }
+
+    /**
+     * Áp dụng mã giảm giá cho giỏ hàng của người dùng
+     * 
+     * @param userId  ID người dùng
+     * @param request Request chứa mã giảm giá
+     * @return Thông tin giỏ hàng sau khi áp dụng mã giảm giá
+     */
+    @PostMapping("/cart/{userId}/apply-discount")
+    public ResponseEntity<ApiResponse<CartResponse>> applyDiscountToCart(
+            @PathVariable Long userId,
+            @RequestBody ApplyDiscountRequest request) {
+        CartResponse cart = cartService.applyDiscountToCart(userId, request.getDiscountCode());
+        return ResponseEntity.ok(ApiResponse.success(cart, "Áp dụng mã giảm giá thành công"));
     }
 
 }

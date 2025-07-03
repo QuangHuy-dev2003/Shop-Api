@@ -41,4 +41,5 @@ public interface ShippingAddressRepository extends JpaRepository<Shipping_addres
     @Modifying
     @Query("DELETE FROM Shipping_addresses sa WHERE sa.user.id = :userId")
     void deleteByUserId(@Param("userId") Long userId);
+
 }

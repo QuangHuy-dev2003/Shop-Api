@@ -52,9 +52,6 @@ public class Orders {
     @Column(name = "shipping_method", nullable = false, length = 50)
     private ShippingMethod shippingMethod;
 
-    @Column(name = "tracking_number", length = 100)
-    private String trackingNumber;
-
     @ManyToOne
     @JoinColumn(name = "discount_id")
     private Discounts discount;
@@ -72,6 +69,9 @@ public class Orders {
     @OneToMany(mappedBy = "order", fetch = FetchType.LAZY)
     @JsonIgnore
     private List<Payments> payments;
+
+    @Column(name = "order_code", unique = true, length = 20)
+    private String orderCode;
 
     public enum OrderStatus {
         PENDING,
@@ -92,9 +92,9 @@ public class Orders {
 
     public enum PaymentMethod {
         CASH_ON_DELIVERY,
-        BANK_TRANSFER,
-        CREDIT_CARD,
-        E_WALLET
+        VNPAY,
+        MOMO,
+        PAYPAL
     }
 
     public enum ShippingMethod {
