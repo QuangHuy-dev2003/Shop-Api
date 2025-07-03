@@ -21,6 +21,11 @@ import com.sportshop.api.Repository.PaymentsRepository;
 import java.time.format.DateTimeFormatter;
 import com.sportshop.api.Domain.UserUsedDiscountCode;
 import com.sportshop.api.Repository.UserUsedDiscountCodeRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import java.time.LocalDate;
 
 /**
  * Service xử lý logic đặt hàng
@@ -175,6 +180,7 @@ public class OrderService {
         order.setShippingMethod(Orders.ShippingMethod.valueOf(request.getShippingMethod()));
         order.setShippingFee(shippingFee);
         order.setOrderCode(orderCode);
+        ordersRepository.save(order);
         // 12. Tạo order_items
         List<Order_items> orderItems = cartItems.stream().map(item -> {
             Order_items oi = new Order_items();
@@ -275,7 +281,8 @@ public class OrderService {
                 order.getPaymentStatus().name(),
                 order.getTotal_amount(),
                 order.getDiscountAmount(),
-                itemInfos);
+                itemInfos,
+                order.getOrderCode());
     }
 
     // Sinh mã đơn hàng dạng VNSPXxxxxxxx
@@ -333,5 +340,211 @@ public class OrderService {
             e.printStackTrace(); // log stacktrace chi tiết
             throw new RuntimeException("Lỗi khi render/gửi email: " + e.getMessage());
         }
+    }
+
+    // Lấy tất cả đơn hàng (admin, có phân trang, lọc)
+    public Page<OrderResponse> getAllOrders(int page, int size, String status, Long userId, String orderCode,
+            String dateFrom, String dateTo) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "orderDate"));
+
+        var spec = (org.springframework.data.jpa.domain.Specification<Orders>) (root, query, cb) -> {
+            var predicates = new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
+            if (status != null && !status.isEmpty()) {
+                predicates.add(cb.equal(root.get("status"), Orders.OrderStatus.valueOf(status)));
+            }
+            if (userId != null) {
+                predicates.add(cb.equal(root.get("user").get("id"), userId));
+            }
+            if (orderCode != null && !orderCode.isEmpty()) {
+                predicates.add(cb.like(root.get("orderCode"), "%" + orderCode + "%"));
+            }
+            DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+            if (dateFrom != null && !dateFrom.isEmpty()) {
+                LocalDate from = LocalDate.parse(dateFrom, fmt);
+                predicates.add(cb.greaterThanOrEqualTo(root.get("orderDate"), from.atStartOfDay()));
+            }
+            if (dateTo != null && !dateTo.isEmpty()) {
+                LocalDate to = LocalDate.parse(dateTo, fmt);
+                predicates.add(cb.lessThanOrEqualTo(root.get("orderDate"), to.atTime(23, 59, 59)));
+            }
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+        Page<Orders> orderPage = ordersRepository.findAll(spec, pageable);
+        // Map sang OrderResponse
+        return orderPage.map(order -> new OrderResponse(
+                order.getId(),
+                order.getStatus().name(),
+                order.getOrderDate(),
+                order.getShippingAddress(),
+                order.getPaymentMethod().name(),
+                order.getPaymentStatus().name(),
+                order.getTotal_amount(),
+                order.getDiscountAmount(),
+                null, // items: chỉ trả về khi lấy chi tiết
+                order.getOrderCode()));
+    }
+
+    // Lấy đơn hàng theo ID
+    public OrderResponse getOrderById(Long orderId) {
+        Orders order = ordersRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng!"));
+        // Lấy danh sách order_items
+        List<Order_items> items = orderItemsRepository.findByOrder(order);
+        List<OrderResponse.OrderItemInfo> itemInfos = items.stream().map(oi -> {
+            String imageUrl = null;
+            List<Product_images> images = productImageRepository.findByProductId(oi.getProduct().getId());
+            if (images != null && !images.isEmpty()) {
+                imageUrl = images.get(0).getImageUrl();
+            } else {
+                imageUrl = oi.getProduct().getImageUrl();
+            }
+            return new OrderResponse.OrderItemInfo(
+                    oi.getProduct().getId(),
+                    oi.getProductName(),
+                    oi.getSize(),
+                    oi.getColor(),
+                    oi.getQuantity(),
+                    oi.getUnit_price(),
+                    oi.getSubtotal(),
+                    imageUrl);
+        }).collect(java.util.stream.Collectors.toList());
+        return new OrderResponse(
+                order.getId(),
+                order.getStatus().name(),
+                order.getOrderDate(),
+                order.getShippingAddress(),
+                order.getPaymentMethod().name(),
+                order.getPaymentStatus().name(),
+                order.getTotal_amount(),
+                order.getDiscountAmount(),
+                itemInfos,
+                order.getOrderCode());
+    }
+
+    // Lấy đơn hàng theo userId (phân trang)
+    public Page<OrderResponse> getOrdersByUserId(Long userId, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "orderDate"));
+        Page<Orders> orderPage = ordersRepository
+                .findAll((root, query, cb) -> cb.equal(root.get("user").get("id"), userId), pageable);
+        return orderPage.map(order -> new OrderResponse(
+                order.getId(),
+                order.getStatus().name(),
+                order.getOrderDate(),
+                order.getShippingAddress(),
+                order.getPaymentMethod().name(),
+                order.getPaymentStatus().name(),
+                order.getTotal_amount(),
+                order.getDiscountAmount(),
+                null,
+                order.getOrderCode()));
+    }
+
+    // Tìm kiếm đơn hàng theo mã
+    public OrderResponse searchOrderByCode(String orderCode) {
+        Orders order = ordersRepository.findAll((root, query, cb) -> cb.equal(root.get("orderCode"), orderCode))
+                .stream().findFirst()
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng với mã: " + orderCode));
+        return getOrderById(order.getId());
+    }
+
+    // Thống kê đơn hàng
+    public com.sportshop.api.Domain.Reponse.Order.OrderStatisticsResponse getOrderStatistics(String from, String to) {
+        // Lọc theo ngày nếu có
+        var spec = (org.springframework.data.jpa.domain.Specification<Orders>) (root, query, cb) -> {
+            var predicates = new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
+            java.time.format.DateTimeFormatter fmt = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd");
+            if (from != null && !from.isEmpty()) {
+                java.time.LocalDate fromDate = java.time.LocalDate.parse(from, fmt);
+                predicates.add(cb.greaterThanOrEqualTo(root.get("orderDate"), fromDate.atStartOfDay()));
+            }
+            if (to != null && !to.isEmpty()) {
+                java.time.LocalDate toDate = java.time.LocalDate.parse(to, fmt);
+                predicates.add(cb.lessThanOrEqualTo(root.get("orderDate"), toDate.atTime(23, 59, 59)));
+            }
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+        List<Orders> orders = ordersRepository.findAll(spec);
+        long totalOrders = orders.size();
+        long totalRevenue = orders.stream().mapToLong(o -> o.getTotal_amount() != null ? o.getTotal_amount() : 0L)
+                .sum();
+        java.util.Map<String, Long> orderCountByStatus = new java.util.HashMap<>();
+        java.util.Map<String, Long> revenueByStatus = new java.util.HashMap<>();
+        for (Orders o : orders) {
+            String status = o.getStatus().name();
+            orderCountByStatus.put(status, orderCountByStatus.getOrDefault(status, 0L) + 1);
+            revenueByStatus.put(status, revenueByStatus.getOrDefault(status, 0L)
+                    + (o.getTotal_amount() != null ? o.getTotal_amount() : 0L));
+        }
+        return new com.sportshop.api.Domain.Reponse.Order.OrderStatisticsResponse(
+                totalOrders, totalRevenue, orderCountByStatus, revenueByStatus);
+    }
+
+    // Cập nhật đơn hàng (trạng thái, thông tin nhận hàng)
+    public OrderResponse updateOrder(Long orderId,
+            com.sportshop.api.Domain.Request.Order.OrderUpdateRequest updateRequest) {
+        Orders order = ordersRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng!"));
+        // Chỉ cho phép cập nhật trạng thái và thông tin nhận hàng
+        if (updateRequest.getStatus() != null) {
+            order.setStatus(updateRequest.getStatus());
+        }
+        // Nếu có cập nhật địa chỉ
+        if (updateRequest.getAddressLine() != null) {
+            StringBuilder sb = new StringBuilder();
+            sb.append(updateRequest.getAddressLine());
+            if (updateRequest.getWard() != null)
+                sb.append(", ").append(updateRequest.getWard());
+            if (updateRequest.getDistrict() != null)
+                sb.append(", ").append(updateRequest.getDistrict());
+            if (updateRequest.getProvince() != null)
+                sb.append(", ").append(updateRequest.getProvince());
+            order.setShippingAddress(sb.toString());
+        }
+        ordersRepository.save(order);
+        return getOrderById(orderId);
+    }
+
+    // Xoá đơn hàng (soft delete: cập nhật status = CANCELLED,
+    public boolean deleteOrder(Long orderId) {
+        Orders order = ordersRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng!"));
+        order.setStatus(Orders.OrderStatus.CANCELLED);
+        ordersRepository.save(order);
+        return true;
+    }
+
+    // Hủy đơn hàng (user): chỉ cho phép hủy trong 1 tiếng đầu
+    public boolean cancelOrderByUser(Long orderId, Long userId) {
+        Orders order = ordersRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng!"));
+        if (!order.getUser().getId().equals(userId)) {
+            throw new RuntimeException("Bạn không có quyền hủy đơn hàng này!");
+        }
+        java.time.Duration duration = java.time.Duration.between(order.getOrderDate(), java.time.LocalDateTime.now());
+        if (duration.toHours() >= 1) {
+            throw new RuntimeException("Chỉ được phép hủy đơn hàng trong vòng 1 tiếng sau khi đặt!");
+        }
+        if (order.getStatus() == Orders.OrderStatus.CANCELLED) {
+            throw new RuntimeException("Đơn hàng đã bị hủy trước đó!");
+        }
+        order.setStatus(Orders.OrderStatus.CANCELLED);
+        ordersRepository.save(order);
+        return true;
+    }
+
+    // Hủy đơn hàng (admin): không giới hạn thời gian
+    public boolean cancelOrderByAdmin(Long orderId, Long adminId) {
+        Orders order = ordersRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng!"));
+        // Kiểm tra quyền admin
+        if (!order.getUser().getId().equals(adminId)) {
+            throw new RuntimeException("Bạn không có quyền hủy đơn hàng này!");
+        }
+        if (order.getStatus() == Orders.OrderStatus.CANCELLED) {
+            throw new RuntimeException("Đơn hàng đã bị hủy trước đó!");
+        }
+        order.setStatus(Orders.OrderStatus.CANCELLED);
+        ordersRepository.save(order);
+        return true;
     }
 }

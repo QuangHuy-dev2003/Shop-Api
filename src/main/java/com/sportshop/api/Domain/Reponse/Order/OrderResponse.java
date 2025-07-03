@@ -22,6 +22,7 @@ public class OrderResponse {
     private Long totalAmount;
     private Long discountAmount;
     private List<OrderItemInfo> items;
+    private String orderCode;
 
     @Data
     @NoArgsConstructor
