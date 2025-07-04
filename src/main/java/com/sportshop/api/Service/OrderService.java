@@ -251,11 +251,19 @@ public class OrderService {
         // 16. Gửi email xác nhận đơn hàng
         List<OrderResponse.OrderItemInfo> itemInfos = orderItems.stream().map(oi -> {
             String imageUrl = null;
-            List<Product_images> images = productImageRepository.findByProductId(oi.getProduct().getId());
+            // Ưu tiên lấy ảnh theo màu
+            List<Product_images> images = productImageRepository.findByProductIdAndColor(oi.getProduct().getId(),
+                    oi.getColor());
             if (images != null && !images.isEmpty()) {
                 imageUrl = images.get(0).getImageUrl();
             } else {
-                imageUrl = oi.getProduct().getImageUrl();
+                // fallback: lấy ảnh chung
+                images = productImageRepository.findByProductIdAndColor(oi.getProduct().getId(), null);
+                if (images != null && !images.isEmpty()) {
+                    imageUrl = images.get(0).getImageUrl();
+                } else {
+                    imageUrl = oi.getProduct().getImageUrl();
+                }
             }
             return new OrderResponse.OrderItemInfo(
                     oi.getProduct().getId(),
@@ -333,6 +341,8 @@ public class OrderService {
             context.setVariable("shippingFee", shippingFee);
             context.setVariable("shippingDiscount", shippingDiscount);
             context.setVariable("items", itemInfos);
+            context.setVariable("paymentMethod", order.getPaymentMethod().name());
+            context.setVariable("paymentStatus", order.getPaymentStatus().name());
             String htmlContent = templateEngine.process("order-confirmation", context);
             helper.setText(htmlContent, true);
             mailSender.send(message);
@@ -392,11 +402,19 @@ public class OrderService {
         List<Order_items> items = orderItemsRepository.findByOrder(order);
         List<OrderResponse.OrderItemInfo> itemInfos = items.stream().map(oi -> {
             String imageUrl = null;
-            List<Product_images> images = productImageRepository.findByProductId(oi.getProduct().getId());
+            // Ưu tiên lấy ảnh theo màu
+            List<Product_images> images = productImageRepository.findByProductIdAndColor(oi.getProduct().getId(),
+                    oi.getColor());
             if (images != null && !images.isEmpty()) {
                 imageUrl = images.get(0).getImageUrl();
             } else {
-                imageUrl = oi.getProduct().getImageUrl();
+                // fallback: lấy ảnh chung
+                images = productImageRepository.findByProductIdAndColor(oi.getProduct().getId(), null);
+                if (images != null && !images.isEmpty()) {
+                    imageUrl = images.get(0).getImageUrl();
+                } else {
+                    imageUrl = oi.getProduct().getImageUrl();
+                }
             }
             return new OrderResponse.OrderItemInfo(
                     oi.getProduct().getId(),

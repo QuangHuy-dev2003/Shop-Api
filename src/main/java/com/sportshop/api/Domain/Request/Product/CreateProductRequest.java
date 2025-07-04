@@ -41,7 +41,13 @@ public class CreateProductRequest {
 
     private List<String> additionalImages;
 
+    private List<String> imageColors;
+
     private List<ProductVariantRequest> variants;
+
+    @NotBlank(message = "Mã sản phẩm không được để trống")
+    @Size(max = 50, message = "Mã sản phẩm không được vượt quá 50 ký tự")
+    private String productCode;
 
     @Data
     @NoArgsConstructor

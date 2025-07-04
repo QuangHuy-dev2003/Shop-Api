@@ -40,11 +40,25 @@ public class CloudinaryService {
         // Validate file
         validateImageFile(file);
 
+        // Lấy tên file gốc (không có extension)
+        String originalFilename = file.getOriginalFilename();
+        String fileNameWithoutExtension = originalFilename;
+        if (originalFilename != null && originalFilename.contains(".")) {
+            fileNameWithoutExtension = originalFilename.substring(0, originalFilename.lastIndexOf("."));
+        }
+
+        // Tạo public_id từ tên file (loại bỏ ký tự đặc biệt)
+        String publicId = fileNameWithoutExtension
+                .replaceAll("[^a-zA-Z0-9\\-_]", "_") // Thay ký tự đặc biệt bằng _
+                .replaceAll("_+", "_") // Thay nhiều _ liên tiếp bằng 1 _
+                .toLowerCase(); // Chuyển thành lowercase
+
         // Tạo options cho Cloudinary
         Map<String, Object> options = new HashMap<>();
         options.put("folder", folder);
         options.put("resource_type", "image");
         options.put("transformation", "f_auto,q_auto"); // Tự động tối ưu format và quality
+        options.put("public_id", publicId); // Giữ nguyên tên file
 
         // Upload lên Cloudinary
         Map<String, Object> result = cloudinary.uploader().upload(file.getBytes(), options);
@@ -94,6 +108,19 @@ public class CloudinaryService {
         // Validate file
         validateImageFile(file);
 
+        // Lấy tên file gốc (không có extension)
+        String originalFilename = file.getOriginalFilename();
+        String fileNameWithoutExtension = originalFilename;
+        if (originalFilename != null && originalFilename.contains(".")) {
+            fileNameWithoutExtension = originalFilename.substring(0, originalFilename.lastIndexOf("."));
+        }
+
+        // Tạo public_id từ tên file (loại bỏ ký tự đặc biệt)
+        String publicId = fileNameWithoutExtension
+                .replaceAll("[^a-zA-Z0-9\\-_]", "_") // Thay ký tự đặc biệt bằng _
+                .replaceAll("_+", "_") // Thay nhiều _ liên tiếp bằng 1 _
+                .toLowerCase(); // Chuyển thành lowercase
+
         // Tạo transformation string
         StringBuilder transformation = new StringBuilder();
         if (width != null && height != null) {
@@ -109,6 +136,7 @@ public class CloudinaryService {
         options.put("folder", folder);
         options.put("resource_type", "image");
         options.put("transformation", transformation.toString());
+        options.put("public_id", publicId); // Giữ nguyên tên file
 
         // Upload lên Cloudinary
         Map<String, Object> result = cloudinary.uploader().upload(file.getBytes(), options);
@@ -214,5 +242,31 @@ public class CloudinaryService {
         }
 
         return originalUrl;
+    }
+
+    /**
+     * Upload file Excel (hoặc file bất kỳ) lên Cloudinary dạng raw
+     * 
+     * @param bytes    nội dung file
+     * @param fileName tên file (có đuôi .xlsx)
+     * @param folder   thư mục trên Cloudinary (ví dụ: "import_errors")
+     * @return URL file đã upload
+     */
+    public String uploadRawFile(byte[] bytes, String fileName, String folder) throws IOException {
+        // Tạo public_id từ tên file (loại bỏ ký tự đặc biệt)
+        String fileNameWithoutExtension = fileName;
+        if (fileName != null && fileName.contains(".")) {
+            fileNameWithoutExtension = fileName.substring(0, fileName.lastIndexOf("."));
+        }
+        String publicId = fileNameWithoutExtension
+                .replaceAll("[^a-zA-Z0-9\\-_]", "_")
+                .replaceAll("_+", "_")
+                .toLowerCase();
+        Map<String, Object> options = new HashMap<>();
+        options.put("folder", folder);
+        options.put("resource_type", "raw");
+        options.put("public_id", publicId);
+        Map<String, Object> result = cloudinary.uploader().upload(bytes, options);
+        return (String) result.get("secure_url");
     }
 }

@@ -15,4 +15,7 @@ public interface ProductVariantsRepository extends JpaRepository<Product_variant
 
     // Xóa tất cả variants của một sản phẩm
     void deleteByProductId(Long productId);
+
+    // Tìm variant theo sản phẩm, màu và size
+    Product_variants findByProductIdAndColorAndSize(Long productId, String color, Product_variants.Size size);
 }

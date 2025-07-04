@@ -128,6 +128,9 @@ public class CartService {
             if (req.getVariantId() != null) {
                 variant = productVariantsRepository.findById(req.getVariantId())
                         .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy biến thể sản phẩm"));
+                if (variant.getStockQuantity() == null || variant.getStockQuantity() <= 0) {
+                    throw new RuntimeException("Biến thể sản phẩm này đã hết hàng!");
+                }
                 item.setVariant(variant);
                 item.setSize(variant.getSize() != null ? variant.getSize().name() : req.getSize());
                 item.setColor(variant.getColor() != null ? variant.getColor() : req.getColor());

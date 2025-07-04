@@ -4,10 +4,31 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.Set;
+import java.util.HashSet;
+import java.time.LocalDateTime;
+import java.util.Date;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.Resource;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.apache.poi.xssf.usermodel.XSSFSheet;
+import org.apache.poi.xssf.usermodel.XSSFRow;
+import org.apache.poi.xssf.usermodel.XSSFCell;
+import org.apache.poi.ss.util.CellRangeAddress;
 
 import com.sportshop.api.Domain.Products;
 import com.sportshop.api.Domain.Reponse.Product.ProductResponse;
@@ -113,6 +134,11 @@ public class ProductService {
                 product.setSalePrice(salePrice);
             }
 
+            // Kiểm tra trùng product_code
+            if (productRepository.findByProductCode(request.getProductCode()).isPresent()) {
+                throw new RuntimeException("Mã sản phẩm đã tồn tại");
+            }
+
             // Lưu sản phẩm
             Products savedProduct = productRepository.save(product);
 
@@ -126,13 +152,19 @@ public class ProductService {
 
             // Lưu ảnh vào DB
             if (imageUrls != null && !imageUrls.isEmpty()) {
-                List<Product_images> productImages = imageUrls.stream()
-                        .map(url -> {
-                            Product_images img = new Product_images();
-                            img.setProduct(savedProduct);
-                            img.setImageUrl(url);
-                            return img;
-                        }).collect(Collectors.toList());
+
+                List<String> imageColors = request.getImageColors(); // List<String> cùng size với imageUrls, có thể
+                                                                     // null
+                List<Product_images> productImages = new ArrayList<>();
+                for (int i = 0; i < imageUrls.size(); i++) {
+                    Product_images img = new Product_images();
+                    img.setProduct(savedProduct);
+                    img.setImageUrl(imageUrls.get(i));
+                    if (imageColors != null && imageColors.size() > i) {
+                        img.setColor(imageColors.get(i)); // gán màu cho ảnh nếu có
+                    }
+                    productImages.add(img);
+                }
                 productImageRepository.saveAll(productImages);
                 // Ảnh đầu tiên là ảnh đại diện
                 savedProduct.setImageUrl(imageUrls.get(0));
@@ -153,6 +185,8 @@ public class ProductService {
                             return variant;
                         }).collect(Collectors.toList());
                 productVariantsRepository.saveAll(variants);
+                // Cập nhật stock_quantity của sản phẩm
+                updateProductStockQuantity(savedProduct.getId());
             }
 
             return convertToProductResponse(savedProduct);
@@ -300,5 +334,697 @@ public class ProductService {
         }
         response.setVariants(variantResponses);
         return response;
+    }
+
+    // Import sản phẩm từ file Excel
+    @Transactional
+    public Map<String, Object> bulkImportFromExcel(MultipartFile file) throws IOException {
+        Map<String, Object> result = new HashMap<>();
+        List<Map<String, Object>> errors = new ArrayList<>();
+        List<Map<String, Object>> errorRows = new ArrayList<>();
+        int successCount = 0;
+        int errorCount = 0;
+
+        // Map để nhóm ảnh theo product và màu
+        Map<String, Map<String, List<String>>> productColorImages = new HashMap<>();
+        // Set để track đã lưu ảnh cho màu nào
+        Set<String> processedColorKeys = new HashSet<>();
+
+        try (InputStream is = file.getInputStream();
+                Workbook workbook = new XSSFWorkbook(is)) {
+
+            Sheet sheet = workbook.getSheetAt(0); // Chỉ đọc sheet đầu tiên
+
+            // First pass: Collect all images grouped by product and color
+            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+                Row row = sheet.getRow(i);
+                if (row == null || isEmptyRow(row))
+                    continue;
+
+                try {
+                    String productCode = getCellValueAsString(row.getCell(0));
+                    String color = getCellValueAsString(row.getCell(5));
+                    String imageUrls = getCellValueAsString(row.getCell(9));
+
+                    if (productCode != null && color != null && imageUrls != null && !imageUrls.trim().isEmpty()) {
+                        productColorImages.computeIfAbsent(productCode, k -> new HashMap<>())
+                                .computeIfAbsent(color.trim(), k -> new ArrayList<>());
+
+                        String[] urls = imageUrls.split(",");
+                        for (String url : urls) {
+                            String trimmedUrl = url.trim();
+                            if (!trimmedUrl.isEmpty()) {
+                                productColorImages.get(productCode).get(color.trim()).add(trimmedUrl);
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    // Continue collecting images even if other data is invalid
+                }
+            }
+
+            // Second pass: Process products and variants
+            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+                Row row = sheet.getRow(i);
+                if (row == null || isEmptyRow(row))
+                    continue;
+
+                try {
+                    Map<String, Object> rowResult = processProductRow(row, i + 1, productColorImages,
+                            processedColorKeys);
+                    if (rowResult.containsKey("error")) {
+                        errors.add(rowResult);
+                        errorRows.add(Map.of("row", i + 1, "data", getRowData(row)));
+                        errorCount++;
+                    } else {
+                        successCount++;
+                    }
+                } catch (Exception e) {
+                    Map<String, Object> error = new HashMap<>();
+                    error.put("row", i + 1);
+                    error.put("error", "Lỗi xử lý dòng: " + e.getMessage());
+                    errors.add(error);
+                    errorRows.add(Map.of("row", i + 1, "data", getRowData(row)));
+                    errorCount++;
+                }
+            }
+        }
+
+        result.put("successCount", successCount);
+        result.put("errorCount", errorCount);
+        result.put("errors", errors);
+
+        // Tạo file lỗi nếu có lỗi
+        if (errorCount > 0) {
+            try {
+                Resource errorFile = generateErrorExcelFile(errorRows, errors);
+                String errorFileName = "import_error_" + java.time.LocalDateTime.now()
+                        .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".xlsx";
+                // Upload file lên Cloudinary (resource_type=raw)
+                String errorFileUrl = cloudinaryService.uploadRawFile(((ByteArrayResource) errorFile).getByteArray(),
+                        errorFileName, "import_errors_excel");
+                result.put("errorFileUrl", errorFileUrl);
+            } catch (Exception e) {
+                result.put("errorFile", "Không thể tạo file lỗi: " + e.getMessage());
+            }
+        }
+
+        return result;
+    }
+
+    private Map<String, Object> processProductRow(Row row, int rowNumber,
+            Map<String, Map<String, List<String>>> productColorImages, Set<String> processedColorKeys) {
+        Map<String, Object> result = new HashMap<>();
+
+        try {
+            // Read data from Excel row
+            String productCode = getCellValueAsString(row.getCell(0));
+            String productName = getCellValueAsString(row.getCell(1));
+            String description = getCellValueAsString(row.getCell(2));
+            String categoryName = getCellValueAsString(row.getCell(3));
+            String brandName = getCellValueAsString(row.getCell(4));
+            String color = getCellValueAsString(row.getCell(5));
+            String sizeStr = getCellValueAsString(row.getCell(6));
+            Double price = getCellValueAsDouble(row.getCell(7));
+            Integer stockQuantity = getCellValueAsInteger(row.getCell(8));
+            String imageUrls = getCellValueAsString(row.getCell(9));
+
+            // Validation
+            if (productCode == null || productCode.trim().isEmpty()) {
+                result.put("row", rowNumber);
+                result.put("error", "Product code không được để trống");
+                result.put("action", "error");
+                return result;
+            }
+
+            if (productName == null || productName.trim().isEmpty()) {
+                result.put("row", rowNumber);
+                result.put("error", "Product name không được để trống");
+                result.put("action", "error");
+                return result;
+            }
+
+            if (price == null || price <= 0) {
+                result.put("row", rowNumber);
+                result.put("error", "Price phải lớn hơn 0");
+                result.put("action", "error");
+                return result;
+            }
+
+            if (stockQuantity == null || stockQuantity < 0) {
+                result.put("row", rowNumber);
+                result.put("error", "Stock quantity phải >= 0");
+                result.put("action", "error");
+                return result;
+            }
+
+            // Find or create category
+            final Category category = categoryName != null && !categoryName.trim().isEmpty()
+                    ? categoryRepository.findByName(categoryName.trim())
+                            .orElseGet(() -> {
+                                Category newCategory = new Category();
+                                newCategory.setName(categoryName.trim());
+                                return categoryRepository.save(newCategory);
+                            })
+                    : null;
+
+            // Find or create brand
+            final Brand brand = brandName != null && !brandName.trim().isEmpty()
+                    ? brandRepository.findByName(brandName.trim())
+                            .orElseGet(() -> {
+                                Brand newBrand = new Brand();
+                                newBrand.setName(brandName.trim());
+                                return brandRepository.save(newBrand);
+                            })
+                    : null;
+
+            // Find existing product or create new one
+            Products product = productRepository.findByProductCode(productCode.trim())
+                    .orElseGet(() -> {
+                        Products newProduct = new Products();
+                        newProduct.setProductCode(productCode.trim());
+                        newProduct.setName(productName.trim());
+                        newProduct.setDescription(description != null ? description.trim() : "");
+                        newProduct.setPrice(BigDecimal.valueOf(price));
+                        newProduct.setCategory(category);
+                        newProduct.setBrand(brand);
+                        newProduct.setIsActive(true);
+                        newProduct.setStockQuantity(0); // Will be updated after variants
+                        newProduct.setCreatedAt(LocalDateTime.now());
+                        return productRepository.save(newProduct);
+                    });
+
+            // Parse size
+            Product_variants.Size sizeEnum = null;
+            if (sizeStr != null && !sizeStr.trim().isEmpty()) {
+                try {
+                    sizeEnum = Product_variants.Size.valueOf(sizeStr.trim().toUpperCase());
+                } catch (IllegalArgumentException e) {
+                    result.put("row", rowNumber);
+                    result.put("error", "Size không hợp lệ: " + sizeStr
+                            + ". Các size hợp lệ: XS, S, M, L, XL, XXL, XXXL, SIZE_36-SIZE_46, WAIST_28-WAIST_50");
+                    result.put("action", "error");
+                    return result;
+                }
+            }
+            String colorKey = color != null ? color.trim() : "";
+
+            // Kiểm tra variant đã tồn tại chưa
+            Product_variants existingVariant = productVariantsRepository.findByProductIdAndColorAndSize(
+                    product.getId(), colorKey, sizeEnum);
+            if (existingVariant != null) {
+                // Cập nhật variant
+                existingVariant.setPrice(BigDecimal.valueOf(price));
+                existingVariant.setStockQuantity(stockQuantity);
+                productVariantsRepository.save(existingVariant);
+                result.put("action", "updated");
+            } else {
+                // Tạo mới variant
+                Product_variants variant = new Product_variants();
+                variant.setProduct(product);
+                variant.setColor(colorKey);
+                variant.setSize(sizeEnum);
+                variant.setPrice(BigDecimal.valueOf(price));
+                variant.setStockQuantity(stockQuantity);
+                productVariantsRepository.save(variant);
+                result.put("action", "created");
+            }
+
+            // Xử lý ảnh cho màu
+            if (productColorImages.containsKey(productCode) &&
+                    productColorImages.get(productCode).containsKey(colorKey)) {
+                List<String> colorImages = productColorImages.get(productCode).get(colorKey);
+                String colorKeyForTracking = productCode + "_" + colorKey;
+                if (!processedColorKeys.contains(colorKeyForTracking)) {
+                    // Kiểm tra ảnh cũ
+                    List<Product_images> oldImages = productImageRepository.findByProductIdAndColor(product.getId(),
+                            colorKey);
+                    List<String> oldUrls = oldImages.stream().map(Product_images::getImageUrl).toList();
+                    boolean needUpdate = !new HashSet<>(oldUrls).equals(new HashSet<>(colorImages));
+                    if (needUpdate) {
+                        // Xóa ảnh cũ
+                        for (Product_images img : oldImages) {
+                            String publicId = cloudinaryService.extractPublicIdFromUrl(img.getImageUrl());
+                            if (publicId != null) {
+                                cloudinaryService.deleteImage(publicId);
+                            }
+                            productImageRepository.delete(img);
+                        }
+                        // Lưu ảnh mới
+                        for (String imageUrl : colorImages) {
+                            Product_images image = new Product_images();
+                            image.setProduct(product);
+                            image.setImageUrl(imageUrl);
+                            image.setColor(colorKey);
+                            productImageRepository.save(image);
+                        }
+                        // Set main image nếu chưa có
+                        if (product.getImageUrl() == null || product.getImageUrl().isEmpty()) {
+                            product.setImageUrl(colorImages.get(0));
+                            productRepository.save(product);
+                        }
+                    }
+                    processedColorKeys.add(colorKeyForTracking);
+                }
+            }
+
+            // Update product stock quantity
+            updateProductStockQuantity(product.getId());
+            result.put("row", rowNumber);
+        } catch (Exception e) {
+            result.put("row", rowNumber);
+            result.put("error", "Lỗi: " + e.getMessage());
+            result.put("action", "error");
+        }
+
+        return result;
+    }
+
+    private String getCellValueAsString(Cell cell) {
+        if (cell == null)
+            return null;
+
+        switch (cell.getCellType()) {
+            case STRING:
+                return cell.getStringCellValue();
+            case NUMERIC:
+                if (DateUtil.isCellDateFormatted(cell)) {
+                    return cell.getDateCellValue().toString();
+                }
+                return String.valueOf((long) cell.getNumericCellValue());
+            case BOOLEAN:
+                return String.valueOf(cell.getBooleanCellValue());
+            case FORMULA:
+                try {
+                    return cell.getStringCellValue();
+                } catch (Exception e) {
+                    try {
+                        return String.valueOf((long) cell.getNumericCellValue());
+                    } catch (Exception ex) {
+                        return null;
+                    }
+                }
+            default:
+                return null;
+        }
+    }
+
+    private Double getCellValueAsDouble(Cell cell) {
+        if (cell == null)
+            return null;
+
+        switch (cell.getCellType()) {
+            case NUMERIC:
+                return cell.getNumericCellValue();
+            case STRING:
+                try {
+                    return Double.parseDouble(cell.getStringCellValue().replace(",", ""));
+                } catch (NumberFormatException e) {
+                    return null;
+                }
+            case FORMULA:
+                try {
+                    return cell.getNumericCellValue();
+                } catch (Exception e) {
+                    return null;
+                }
+            default:
+                return null;
+        }
+    }
+
+    private Integer getCellValueAsInteger(Cell cell) {
+        if (cell == null)
+            return null;
+
+        switch (cell.getCellType()) {
+            case NUMERIC:
+                return (int) cell.getNumericCellValue();
+            case STRING:
+                try {
+                    return Integer.parseInt(cell.getStringCellValue().replace(",", ""));
+                } catch (NumberFormatException e) {
+                    return null;
+                }
+            case FORMULA:
+                try {
+                    return (int) cell.getNumericCellValue();
+                } catch (Exception e) {
+                    return null;
+                }
+            default:
+                return null;
+        }
+    }
+
+    private List<String> getRowData(Row row) {
+        List<String> data = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            data.add(getCellValueAsString(row.getCell(i)));
+        }
+        return data;
+    }
+
+    /**
+     * Kiểm tra xem một dòng có trống hay không
+     */
+    private boolean isEmptyRow(Row row) {
+        if (row == null)
+            return true;
+
+        // Kiểm tra các cột quan trọng (productCode, productName, price, stockQuantity)
+        String productCode = getCellValueAsString(row.getCell(0));
+        String productName = getCellValueAsString(row.getCell(1));
+        Double price = getCellValueAsDouble(row.getCell(7));
+        Integer stockQuantity = getCellValueAsInteger(row.getCell(8));
+
+        // Nếu tất cả các trường bắt buộc đều trống thì coi như dòng trống
+        return (productCode == null || productCode.trim().isEmpty()) &&
+                (productName == null || productName.trim().isEmpty()) &&
+                (price == null || price <= 0) &&
+                (stockQuantity == null || stockQuantity <= 0);
+    }
+
+    // Tạo file Excel mẫu
+    public Resource generateExcelTemplate() throws IOException {
+        try (Workbook workbook = new XSSFWorkbook()) {
+
+            // Sheet 1: Template dữ liệu
+            Sheet dataSheet = workbook.createSheet("Dữ liệu sản phẩm");
+
+            // Tạo style cho header
+            CellStyle headerStyle = workbook.createCellStyle();
+            Font headerFont = workbook.createFont();
+            headerFont.setBold(true);
+            headerFont.setColor(IndexedColors.WHITE.getIndex());
+            headerStyle.setFont(headerFont);
+            headerStyle.setFillForegroundColor(IndexedColors.BLUE.getIndex());
+            headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            headerStyle.setAlignment(HorizontalAlignment.CENTER);
+            headerStyle.setBorderTop(BorderStyle.THIN);
+            headerStyle.setBorderBottom(BorderStyle.THIN);
+            headerStyle.setBorderLeft(BorderStyle.THIN);
+            headerStyle.setBorderRight(BorderStyle.THIN);
+
+            // Tạo headers
+            String[] headers = {
+                    "Product Code*", "Product Name*", "Description", "Category Name", "Brand Name",
+                    "Color", "Size", "Price*", "Stock Quantity*", "Image URLs"
+            };
+
+            Row headerRow = dataSheet.createRow(0);
+            for (int i = 0; i < headers.length; i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(headerStyle);
+                dataSheet.setColumnWidth(i, 20 * 256); // Set column width
+            }
+
+            // Tạo style cho dữ liệu mẫu
+            CellStyle dataStyle = workbook.createCellStyle();
+            dataStyle.setBorderTop(BorderStyle.THIN);
+            dataStyle.setBorderBottom(BorderStyle.THIN);
+            dataStyle.setBorderLeft(BorderStyle.THIN);
+            dataStyle.setBorderRight(BorderStyle.THIN);
+
+            // Thêm dữ liệu mẫu
+            String[][] sampleData = {
+                    { "SP001", "Nike Air Max 270", "Giày chạy bộ thoải mái", "Running Shoes", "Nike", "Red", "SIZE_42",
+                            "1500000", "10", "https://example.com/image1.jpg,https://example.com/image2.jpg" },
+                    { "SP001", "Nike Air Max 270", "Giày chạy bộ thoải mái", "Running Shoes", "Nike", "Blue", "SIZE_42",
+                            "1500000", "5", "https://example.com/image3.jpg" },
+                    { "SP002", "Adidas T-Shirt", "Áo thun thể thao", "T-Shirts", "Adidas", "Black", "M", "500000", "15",
+                            "https://example.com/image4.jpg" }
+            };
+
+            for (int i = 0; i < sampleData.length; i++) {
+                Row row = dataSheet.createRow(i + 1);
+                for (int j = 0; j < sampleData[i].length; j++) {
+                    Cell cell = row.createCell(j);
+                    cell.setCellValue(sampleData[i][j]);
+                    cell.setCellStyle(dataStyle);
+                }
+            }
+
+            // Sheet 2: Hướng dẫn
+            Sheet guideSheet = workbook.createSheet("Hướng dẫn");
+
+            // Tạo style cho tiêu đề
+            CellStyle titleStyle = workbook.createCellStyle();
+            Font titleFont = workbook.createFont();
+            titleFont.setBold(true);
+            titleFont.setFontHeightInPoints((short) 14);
+            titleStyle.setFont(titleFont);
+
+            // Tạo style cho nội dung
+            CellStyle contentStyle = workbook.createCellStyle();
+            contentStyle.setWrapText(true);
+
+            int rowNum = 0;
+
+            // Tiêu đề
+            Row titleRow = guideSheet.createRow(rowNum++);
+            Cell titleCell = titleRow.createCell(0);
+            titleCell.setCellValue("HƯỚNG DẪN NHẬP DỮ LIỆU SẢN PHẨM");
+            titleCell.setCellStyle(titleStyle);
+
+            rowNum++; // Dòng trống
+
+            // Quy tắc chung
+            Row ruleTitleRow = guideSheet.createRow(rowNum++);
+            Cell ruleTitleCell = ruleTitleRow.createCell(0);
+            ruleTitleCell.setCellValue("QUY TẮC CHUNG:");
+            ruleTitleCell.setCellStyle(titleStyle);
+
+            String[] rules = {
+                    "1. Chỉ nhập dữ liệu vào Sheet 'Dữ liệu sản phẩm'",
+                    "2. Không xóa hoặc thay đổi dòng header (dòng 1)",
+                    "3. Các cột có dấu * là bắt buộc",
+                    "4. Mỗi dòng là một variant của sản phẩm",
+                    "5. Upload ảnh lên Cloudinary trước khi nhập URL"
+            };
+
+            for (String rule : rules) {
+                Row ruleRow = guideSheet.createRow(rowNum++);
+                Cell ruleCell = ruleRow.createCell(0);
+                ruleCell.setCellValue(rule);
+                ruleCell.setCellStyle(contentStyle);
+            }
+
+            rowNum++; // Dòng trống
+
+            // Chi tiết từng cột
+            Row detailTitleRow = guideSheet.createRow(rowNum++);
+            Cell detailTitleCell = detailTitleRow.createCell(0);
+            detailTitleCell.setCellValue("CHI TIẾT TỪNG CỘT:");
+            detailTitleCell.setCellStyle(titleStyle);
+
+            String[] columnDetails = {
+                    "A - Product Code*: Mã sản phẩm duy nhất (bắt buộc, dùng để nhóm variants)",
+                    "B - Product Name*: Tên sản phẩm (bắt buộc)",
+                    "C - Description: Mô tả sản phẩm (tùy chọn)",
+                    "D - Category Name: Tên danh mục (tùy chọn, sẽ tạo mới nếu chưa có)",
+                    "E - Brand Name: Tên thương hiệu (tùy chọn, sẽ tạo mới nếu chưa có)",
+                    "F - Color: Màu sắc variant (tùy chọn)",
+                    "G - Size: Kích thước (tùy chọn, sử dụng các giá trị: XS, S, M, L, XL, XXL, XXXL, SIZE_36-SIZE_46, WAIST_28-WAIST_50)",
+                    "H - Price*: Giá sản phẩm (bắt buộc, > 0, đơn vị VND)",
+                    "I - Stock Quantity*: Số lượng tồn kho (bắt buộc, >= 0)",
+                    "J - Image URLs: URL ảnh (tùy chọn, phân cách bằng dấu phẩy)"
+            };
+
+            for (String detail : columnDetails) {
+                Row detailRow = guideSheet.createRow(rowNum++);
+                Cell detailCell = detailRow.createCell(0);
+                detailCell.setCellValue(detail);
+                detailCell.setCellStyle(contentStyle);
+            }
+
+            rowNum++; // Dòng trống
+
+            // Ví dụ
+            Row exampleTitleRow = guideSheet.createRow(rowNum++);
+            Cell exampleTitleCell = exampleTitleRow.createCell(0);
+            exampleTitleCell.setCellValue("VÍ DỤ:");
+            exampleTitleCell.setCellStyle(titleStyle);
+
+            String[] examples = {
+                    "Sản phẩm giày Nike với 2 màu:",
+                    "Dòng 1: SP001 | Nike Air Max 270 | Giày chạy bộ | Running Shoes | Nike | Red | SIZE_42 | 1500000 | 10 | https://example.com/red.jpg",
+                    "Dòng 2: SP001 | Nike Air Max 270 | Giày chạy bộ | Running Shoes | Nike | Blue | SIZE_42 | 1500000 | 5 | https://example.com/blue.jpg",
+                    "",
+                    "Sản phẩm áo với nhiều size:",
+                    "Dòng 1: SP002 | Adidas T-Shirt | Áo thun | T-Shirts | Adidas | Black | S | 500000 | 15 | https://example.com/black.jpg",
+                    "Dòng 2: SP002 | Adidas T-Shirt | Áo thun | T-Shirts | Adidas | Black | M | 500000 | 20 | https://example.com/black.jpg",
+                    "Dòng 3: SP002 | Adidas T-Shirt | Áo thun | T-Shirts | Adidas | Black | L | 500000 | 12 | https://example.com/black.jpg"
+            };
+
+            for (String example : examples) {
+                Row exampleRow = guideSheet.createRow(rowNum++);
+                Cell exampleCell = exampleRow.createCell(0);
+                exampleCell.setCellValue(example);
+                exampleCell.setCellStyle(contentStyle);
+            }
+
+            // Set column width cho sheet hướng dẫn
+            guideSheet.setColumnWidth(0, 80 * 256);
+
+            // Ghi workbook vào ByteArrayOutputStream
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            workbook.write(outputStream);
+
+            return new ByteArrayResource(outputStream.toByteArray());
+        }
+    }
+
+    // Tạo file Excel lỗi
+    private Resource generateErrorExcelFile(List<Map<String, Object>> errorRows, List<Map<String, Object>> errors)
+            throws IOException {
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("Dữ liệu lỗi");
+
+            // Tạo style cho header
+            CellStyle headerStyle = workbook.createCellStyle();
+            Font headerFont = workbook.createFont();
+            headerFont.setBold(true);
+            headerFont.setColor(IndexedColors.WHITE.getIndex());
+            headerStyle.setFont(headerFont);
+            headerStyle.setFillForegroundColor(IndexedColors.RED.getIndex());
+            headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            headerStyle.setAlignment(HorizontalAlignment.CENTER);
+            headerStyle.setBorderTop(BorderStyle.THIN);
+            headerStyle.setBorderBottom(BorderStyle.THIN);
+            headerStyle.setBorderLeft(BorderStyle.THIN);
+            headerStyle.setBorderRight(BorderStyle.THIN);
+
+            // Tạo style cho dữ liệu lỗi
+            CellStyle errorStyle = workbook.createCellStyle();
+            Font errorFont = workbook.createFont();
+            errorFont.setColor(IndexedColors.RED.getIndex());
+            errorStyle.setFont(errorFont);
+            errorStyle.setFillForegroundColor(IndexedColors.ROSE.getIndex());
+            errorStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            errorStyle.setBorderTop(BorderStyle.THIN);
+            errorStyle.setBorderBottom(BorderStyle.THIN);
+            errorStyle.setBorderLeft(BorderStyle.THIN);
+            errorStyle.setBorderRight(BorderStyle.THIN);
+
+            // Headers
+            String[] headers = {
+                    "Row", "Product Code", "Product Name", "Description", "Category Name", "Brand Name",
+                    "Color", "Size", "Price", "Stock Quantity", "Image URLs", "Lỗi", "Action"
+            };
+
+            Row headerRow = sheet.createRow(0);
+            for (int i = 0; i < headers.length; i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(headerStyle);
+                sheet.setColumnWidth(i, 20 * 256);
+            }
+
+            // Dữ liệu lỗi
+            for (int i = 0; i < errorRows.size(); i++) {
+                Row row = sheet.createRow(i + 1);
+
+                Map<String, Object> errorRow = errorRows.get(i);
+                Map<String, Object> error = errors.get(i);
+
+                List<String> data = (List<String>) errorRow.get("data");
+
+                // Row number
+                Cell rowCell = row.createCell(0);
+                rowCell.setCellValue((Integer) errorRow.get("row"));
+                rowCell.setCellStyle(errorStyle);
+
+                // Data
+                for (int j = 0; j < data.size(); j++) {
+                    Cell cell = row.createCell(j + 1);
+                    cell.setCellValue(data.get(j) != null ? data.get(j) : "");
+                    cell.setCellStyle(errorStyle);
+                }
+
+                // Error message
+                Cell errorCell = row.createCell(11);
+                errorCell.setCellValue((String) error.get("error"));
+                errorCell.setCellStyle(errorStyle);
+
+                // Action
+                Cell actionCell = row.createCell(12);
+                actionCell.setCellValue(error.get("action") != null ? error.get("action").toString() : "");
+                actionCell.setCellStyle(errorStyle);
+            }
+
+            // Ghi workbook vào ByteArrayOutputStream
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            workbook.write(outputStream);
+
+            return new ByteArrayResource(outputStream.toByteArray());
+        }
+    }
+
+    /**
+     * Cập nhật stock_quantity của sản phẩm bằng tổng stock của tất cả variants
+     */
+    private void updateProductStockQuantity(Long productId) {
+        Products product = productRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm với ID: " + productId));
+
+        List<Product_variants> variants = productVariantsRepository.findByProductId(productId);
+        int totalStock = variants.stream().mapToInt(Product_variants::getStockQuantity).sum();
+
+        product.setStockQuantity(totalStock);
+        productRepository.save(product);
+    }
+
+    /**
+     * Upload ảnh lên Cloudinary (không liên kết với sản phẩm)
+     * Dùng để upload ảnh trước khi import Excel
+     * 
+     * @param images Danh sách ảnh cần upload
+     * @return Danh sách URL ảnh đã upload
+     */
+    public List<String> uploadImagesToCloudinary(List<MultipartFile> images) {
+        if (images == null || images.isEmpty()) {
+            throw new IllegalArgumentException("Danh sách ảnh không được để trống");
+        }
+
+        try {
+            // Upload ảnh lên Cloudinary với folder "products"
+            List<String> imageUrls = cloudinaryService.uploadMultipleImages(images, "products");
+            return imageUrls;
+        } catch (Exception e) {
+            throw new RuntimeException("Lỗi upload ảnh: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Upload ảnh lên Cloudinary với transformation (không liên kết với sản phẩm)
+     * 
+     * @param images Danh sách ảnh cần upload
+     * @param width  Chiều rộng mong muốn (có thể null)
+     * @param height Chiều cao mong muốn (có thể null)
+     * @param crop   Loại crop (có thể null)
+     * @return Danh sách URL ảnh đã upload
+     */
+    public List<String> uploadImagesToCloudinaryWithTransformation(List<MultipartFile> images,
+            Integer width, Integer height, String crop) {
+        if (images == null || images.isEmpty()) {
+            throw new IllegalArgumentException("Danh sách ảnh không được để trống");
+        }
+
+        try {
+            List<String> imageUrls = new ArrayList<>();
+
+            // Upload từng ảnh với transformation
+            for (MultipartFile image : images) {
+                String imageUrl = cloudinaryService.uploadImageWithTransformation(image, "products", width, height,
+                        crop);
+                imageUrls.add(imageUrl);
+            }
+
+            return imageUrls;
+        } catch (Exception e) {
+            throw new RuntimeException("Lỗi upload ảnh: " + e.getMessage(), e);
+        }
     }
 }

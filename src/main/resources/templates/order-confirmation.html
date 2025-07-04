@@ -516,16 +516,27 @@
           </div>
         </div>
 
+        <!-- Payment Information -->
+        <div class="payment-info">
+          <h2>Thông tin thanh toán</h2>
+          <table>
+            <tr>
+              <td><b>Phương thức thanh toán:</b></td>
+              <td
+                th:text="${paymentMethod == 'CASH_ON_DELIVERY' ? 'Thanh toán khi nhận hàng' : 'Chuyển khoản ngân hàng'}"></td>
+            </tr>
+            <tr>
+              <td><b>Trạng thái thanh toán:</b></td>
+              <td
+                th:text="${paymentStatus == 'PAID' ? 'Đã thanh toán' : 'Chưa thanh toán'}"></td>
+            </tr>
+          </table>
+        </div>
+
         <!-- Shipping Information -->
         <div class="shipping-info">
           <h2>Thông tin giao hàng</h2>
           <div th:text="${shippingAddressFull}"></div>
-        </div>
-
-        <!-- CTA Section -->
-        <div class="cta-section">
-          <a href="#" class="track-button">🚚 Theo dõi đơn hàng</a>
-          <a href="#" class="track-button">🛍️ Tiếp tục mua sắm</a>
         </div>
 
         <!-- Support Information -->

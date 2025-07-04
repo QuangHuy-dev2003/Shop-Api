@@ -8,6 +8,9 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 @Configuration
 @EnableWebSecurity
@@ -21,11 +24,26 @@ public class SecurityConfig {
                 // Tắt OAuth2 client và resource server
                 .oauth2Client(AbstractHttpConfigurer::disable)
                 .oauth2ResourceServer(AbstractHttpConfigurer::disable)
+                // Bật CORS
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 // Cấu hình authorization - cho phép tất cả request
                 .authorizeHttpRequests(authz -> authz
                         .anyRequest().permitAll());
 
         return http.build();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.addAllowedOrigin("*");
+        configuration.addAllowedMethod("*");
+        configuration.addAllowedHeader("*");
+        configuration.addExposedHeader("Content-Disposition");
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 
     @Bean

@@ -24,4 +24,7 @@ public class Product_images {
     @Column(name = "image_url", nullable = false, length = 255)
     private String imageUrl;
 
+    @Column(name = "color", length = 255)
+    private String color;
+
 }

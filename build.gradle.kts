@@ -49,6 +49,8 @@ dependencies {
 	implementation("com.cloudinary:cloudinary-http5:2.2.0")
 	implementation("com.cloudinary:cloudinary-taglib:2.2.0")
 	implementation("org.springframework.boot:spring-boot-starter-thymeleaf")
+	implementation("org.apache.poi:poi:5.2.3")
+	implementation("org.apache.poi:poi-ooxml:5.2.3")
 }
 
 tasks.withType<Test> {

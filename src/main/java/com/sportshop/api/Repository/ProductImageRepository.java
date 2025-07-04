@@ -15,4 +15,7 @@ public interface ProductImageRepository
 
     // Xóa tất cả ảnh của một sản phẩm
     void deleteByProductId(Long productId);
+
+    // Tìm ảnh theo sản phẩm và màu
+    List<Product_images> findByProductIdAndColor(Long productId, String color);
 }

@@ -50,6 +50,9 @@ public class Products {
     @Column(name = "image_url", length = 255)
     private String imageUrl;
 
+    @Column(name = "product_code", unique = true, length = 50)
+    private String productCode;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 

@@ -5,6 +5,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import jakarta.validation.Valid;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 
 import com.sportshop.api.Service.ProductService;
 import com.sportshop.api.Domain.Request.Product.CreateProductRequest;
@@ -12,6 +15,7 @@ import com.sportshop.api.Domain.Reponse.ApiResponse;
 import com.sportshop.api.Domain.Reponse.Product.ProductResponse;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1")
@@ -62,6 +66,64 @@ public class ProductController {
     public ResponseEntity<ApiResponse<String>> deleteProduct(@PathVariable Long id) {
         productService.deleteProduct(id);
         return ResponseEntity.ok(ApiResponse.success("Xóa sản phẩm thành công"));
+    }
+
+    // Import sản phẩm từ file Excel
+    @PostMapping("/import-products-from-excel")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> bulkImportProducts(
+            @RequestParam("file") MultipartFile file) {
+        try {
+            Map<String, Object> result = productService.bulkImportFromExcel(file);
+            return ResponseEntity.ok(ApiResponse.success(result, "Import thành công"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Lỗi import: " + e.getMessage()));
+        }
+    }
+
+    // Tạo file Excel mẫu
+    @GetMapping("/download-excel-template")
+    public ResponseEntity<Resource> downloadExcelTemplate() {
+        try {
+            Resource resource = productService.generateExcelTemplate();
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"product_import_template.xlsx\"")
+                    .header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, "Content-Disposition")
+                    .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                    .body(resource);
+        } catch (Exception e) {
+            throw new RuntimeException("Lỗi tạo file template: " + e.getMessage());
+        }
+    }
+
+    // Upload ảnh lên Cloudinary (không liên kết sản phẩm)
+    @PostMapping("/upload-images")
+    public ResponseEntity<ApiResponse<List<String>>> uploadImagesToCloudinary(
+            @RequestParam("images") List<MultipartFile> images) {
+        try {
+            List<String> imageUrls = productService.uploadImagesToCloudinary(images);
+            return ResponseEntity.ok(ApiResponse.success(imageUrls, "Upload ảnh lên Cloudinary thành công"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Lỗi upload ảnh: " + e.getMessage()));
+        }
+    }
+
+    // Upload ảnh lên Cloudinary với transformation (không liên kết sản phẩm)
+    @PostMapping("/upload-images-with-transformation")
+    public ResponseEntity<ApiResponse<List<String>>> uploadImagesToCloudinaryWithTransformation(
+            @RequestParam("images") List<MultipartFile> images,
+            @RequestParam(value = "width", required = false) Integer width,
+            @RequestParam(value = "height", required = false) Integer height,
+            @RequestParam(value = "crop", required = false) String crop) {
+        try {
+            List<String> imageUrls = productService.uploadImagesToCloudinaryWithTransformation(
+                    images, width, height, crop);
+            return ResponseEntity.ok(ApiResponse.success(imageUrls, "Upload ảnh với transformation thành công"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Lỗi upload ảnh: " + e.getMessage()));
+        }
     }
 
 }
