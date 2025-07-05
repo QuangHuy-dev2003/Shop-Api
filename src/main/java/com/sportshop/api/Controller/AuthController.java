@@ -216,4 +216,27 @@ public class AuthController {
                     LocalDateTime.now()));
         }
     }
+
+    /**
+     * Kích hoạt tài khoản admin (đặc biệt cho tài khoản được tạo trực tiếp trong
+     * DB)
+     * POST /api/auth/activate-admin
+     */
+    @PostMapping("/auth/activate-admin")
+    public ResponseEntity<ApiResponse<RegisterResponse>> activateAdminAccount(@RequestParam String email) {
+        try {
+            RegisterResponse response = authService.activateAdminAccount(email);
+            return ResponseEntity.ok(new ApiResponse<>(
+                    true,
+                    "Kích hoạt tài khoản admin thành công",
+                    response,
+                    LocalDateTime.now()));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(new ApiResponse<>(
+                    false,
+                    e.getMessage(),
+                    null,
+                    LocalDateTime.now()));
+        }
+    }
 }

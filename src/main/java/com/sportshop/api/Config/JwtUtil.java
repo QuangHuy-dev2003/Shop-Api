@@ -29,6 +29,7 @@ public class JwtUtil {
     @PostConstruct
     public void init() {
         this.key = Keys.hmacShaKeyFor(jwtConfig.getJwtSecret().getBytes());
+        System.out.println("JWT SECRET ACTUALLY USED: " + jwtConfig.getJwtSecret());
     }
 
     /**

@@ -350,4 +350,33 @@ public class AuthService {
                 user.getEmail(),
                 user.getId());
     }
+
+    /**
+     * Kích hoạt tài khoản admin (đặc biệt cho tài khoản được tạo trực tiếp trong
+     * DB)
+     */
+    @Transactional
+    public RegisterResponse activateAdminAccount(String email) {
+        Users user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy tài khoản với email này"));
+
+        // Kiểm tra xem có phải admin không (roleId = 1)
+        if (user.getRoleId() == null || user.getRoleId() != 1L) {
+            throw new RuntimeException("Chỉ có thể kích hoạt tài khoản admin");
+        }
+
+        // Kiểm tra tài khoản đã kích hoạt chưa
+        if (user.getActive()) {
+            throw new RuntimeException("Tài khoản đã được kích hoạt");
+        }
+
+        // Kích hoạt tài khoản
+        user.setActive(true);
+        userRepository.save(user);
+
+        return new RegisterResponse(
+                "Kích hoạt tài khoản admin thành công! Bạn có thể đăng nhập.",
+                user.getEmail(),
+                user.getId());
+    }
 }
