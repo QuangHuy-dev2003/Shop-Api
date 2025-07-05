@@ -16,14 +16,12 @@ public class PermissionInterceptorConfiguration implements WebMvcConfigurer {
         String[] whiteList = {
                 "/api/v1/auth/**",
                 "/api/v1/otp/**",
-                "/api/v1/products/**",
-                "/api/v1/categories/**",
-                "/api/v1/brands/**",
-                "/api/v1/discounts/**",
-                "/api/v1/download-excel-template"
+                "/error",
+                "/",
+                "/login**",
+                "/oauth2/**"
         };
         registry.addInterceptor(permissionInterceptor)
-                .excludePathPatterns(whiteList)
-                .excludePathPatterns("/error");
+                .excludePathPatterns(whiteList);
     }
 }

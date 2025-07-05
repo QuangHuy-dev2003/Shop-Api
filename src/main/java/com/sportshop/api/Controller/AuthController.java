@@ -3,6 +3,8 @@ package com.sportshop.api.Controller;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.security.oauth2.core.user.OAuth2User;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
 import com.sportshop.api.Service.AuthService;
 import com.sportshop.api.Domain.Request.Auth.RegisterRequest;
@@ -14,6 +16,7 @@ import com.sportshop.api.Domain.Reponse.ApiResponse;
 
 import jakarta.validation.Valid;
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1")
@@ -238,5 +241,30 @@ public class AuthController {
                     null,
                     LocalDateTime.now()));
         }
+    }
+
+    /**
+     * Lấy URL để đăng nhập Google OAuth2
+     */
+    @GetMapping("/auth/google/login")
+    public ResponseEntity<ApiResponse<String>> getGoogleLoginUrl() {
+        String googleLoginUrl = "http://localhost:8080/oauth2/authorization/google";
+        return ResponseEntity.ok(new ApiResponse<>(
+                true,
+                "Redirect to Google OAuth2",
+                googleLoginUrl,
+                LocalDateTime.now()));
+    }
+
+    /**
+     * Endpoint trả về thông tin user sau khi đăng nhập Google OAuth2 thành công
+     */
+    @GetMapping("/auth/google-success")
+    public ResponseEntity<?> googleLoginSuccess(@AuthenticationPrincipal OAuth2User principal) {
+        Map<String, Object> attributes = principal.getAttributes();
+        String email = (String) attributes.get("email");
+        String name = (String) attributes.get("name");
+        // Xử lý logic của bạn ở đây (tạo token, trả về user info, ...)
+        return ResponseEntity.ok(attributes);
     }
 }

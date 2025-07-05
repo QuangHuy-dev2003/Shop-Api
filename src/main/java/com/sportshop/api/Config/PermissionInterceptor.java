@@ -189,7 +189,7 @@ public class PermissionInterceptor implements HandlerInterceptor {
      * Kiểm tra API có phải là public không
      */
     private boolean isPublicAPI(String requestURI, String method) {
-        // Auth APIs - luôn public
+        // Auth APIs - luôn public (bao gồm Google OAuth2)
         if (requestURI.startsWith("/api/v1/auth/")) {
             return true;
         }

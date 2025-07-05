@@ -8,7 +8,6 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
-
 import com.sportshop.api.Domain.Users;
 import com.sportshop.api.Domain.RefreshToken;
 import com.sportshop.api.Domain.Request.Auth.RegisterRequest;
@@ -379,4 +378,5 @@ public class AuthService {
                 user.getEmail(),
                 user.getId());
     }
+
 }
