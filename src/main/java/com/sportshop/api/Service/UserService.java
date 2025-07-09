@@ -73,6 +73,9 @@ public class UserService {
         user.setFirstLogin(true);
         user.setProvider(Users.Provider.DEFAULT);
         user.setGender(Users.Gender.valueOf(request.getGender()));
+        if (request.getIsActive() != null) {
+            user.setActive(request.getIsActive());
+        }
 
         // Xử lý avatar nếu có
         if (avatarFile != null && !avatarFile.isEmpty()) {
@@ -159,6 +162,10 @@ public class UserService {
         }
         if (request.getGender() != null) {
             user.setGender(Users.Gender.valueOf(request.getGender()));
+        }
+
+        if (request.getIsActive() != null) {
+            user.setActive(request.getIsActive());
         }
 
         // Xử lý avatar - ưu tiên file upload trước, sau đó mới đến URL
@@ -314,6 +321,7 @@ public class UserService {
         response.setCreatedAt(user.getCreatedAt());
         response.setProvider(user.getProvider().name());
         response.setAvatar(user.getAvatar());
+        response.setIsActive(user.getActive());
 
         // Lấy danh sách địa chỉ
         List<Shipping_addresses> addresses = shippingAddressRepository.findByUserId(user.getId());

@@ -6,10 +6,13 @@ import org.springframework.web.multipart.MultipartFile;
 import jakarta.validation.Valid;
 import jakarta.servlet.http.HttpServletRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
+import com.sportshop.api.Service.ShippingAddressService;
 import com.sportshop.api.Service.UserService;
+import com.sportshop.api.Domain.Request.ShippingAddress.CreateAddressRequest;
+import com.sportshop.api.Domain.Request.ShippingAddress.UpdateAddressRequest;
 import com.sportshop.api.Domain.Request.User.CreateUserRequest;
 import com.sportshop.api.Domain.Request.User.UpdateUserRequest;
+import com.sportshop.api.Domain.Reponse.User.ShippingAddressResponse;
 import com.sportshop.api.Domain.Reponse.User.UserResponse;
 import com.sportshop.api.Domain.Reponse.ApiResponse;
 
@@ -20,9 +23,11 @@ import java.util.List;
 public class UserController {
 
     private final UserService userService;
+    private final ShippingAddressService shippingAddressService;
 
-    public UserController(UserService userService) {
+    public UserController(UserService userService, ShippingAddressService shippingAddressService) {
         this.userService = userService;
+        this.shippingAddressService = shippingAddressService;
     }
 
     /**
@@ -56,7 +61,7 @@ public class UserController {
      * Lấy user theo ID
      */
     @GetMapping("/users/{id}")
-    public ResponseEntity<ApiResponse<UserResponse>> getUserById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<UserResponse>> getUserById(@PathVariable("id") Long id) {
         UserResponse user = userService.getUserById(id);
         return ResponseEntity.ok(ApiResponse.success(user, "Lấy thông tin user thành công"));
     }
@@ -66,7 +71,7 @@ public class UserController {
      */
     @PutMapping("/users/{id}")
     public ResponseEntity<ApiResponse<UserResponse>> updateUser(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @RequestPart("user") String userJson,
             @RequestPart(value = "avatar", required = false) MultipartFile avatarFile) {
         ObjectMapper objectMapper = new ObjectMapper();
@@ -126,4 +131,5 @@ public class UserController {
         userService.deleteAvatar(id);
         return ResponseEntity.ok(ApiResponse.success("Xóa avatar thành công"));
     }
+
 }

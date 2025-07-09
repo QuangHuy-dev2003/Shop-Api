@@ -83,6 +83,11 @@ public class Users {
     @JsonIgnore
     private List<RefreshToken> refreshTokens;
 
+    @ManyToOne
+    @JoinColumn(name = "role")
+    @JsonIgnore
+    private Role role;
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();

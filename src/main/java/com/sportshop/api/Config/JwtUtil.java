@@ -11,6 +11,8 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import java.security.Key;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Function;
 
 /**
@@ -30,6 +32,7 @@ public class JwtUtil {
     public void init() {
         this.key = Keys.hmacShaKeyFor(jwtConfig.getJwtSecret().getBytes());
         System.out.println("JWT SECRET ACTUALLY USED: " + jwtConfig.getJwtSecret());
+        System.out.println("JWT SECRET LENGTH: " + jwtConfig.getJwtSecret().length());
     }
 
     /**
@@ -38,6 +41,23 @@ public class JwtUtil {
     public String generateAccessToken(String subject) {
         return Jwts.builder()
                 .setSubject(subject)
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + jwtConfig.getAccessTokenExpirationMs()))
+                .signWith(key, SignatureAlgorithm.HS256)
+                .compact();
+    }
+
+    /**
+     * Sinh access token cho user với role_id và name
+     */
+    public String generateAccessToken(String subject, Long roleId, String name) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("email", subject); // Thêm email vào claims
+        claims.put("role_id", roleId);
+        claims.put("name", name);
+
+        return Jwts.builder()
+                .setClaims(claims)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + jwtConfig.getAccessTokenExpirationMs()))
                 .signWith(key, SignatureAlgorithm.HS256)
@@ -64,6 +84,33 @@ public class JwtUtil {
     }
 
     /**
+     * Lấy role_id từ token
+     */
+    public Long extractRoleId(String token) {
+        return extractClaim(token, claims -> {
+            Object roleIdObj = claims.get("role_id");
+            if (roleIdObj instanceof Integer) {
+                return ((Integer) roleIdObj).longValue();
+            }
+            return (Long) roleIdObj;
+        });
+    }
+
+    /**
+     * Lấy name từ token
+     */
+    public String extractName(String token) {
+        return extractClaim(token, claims -> (String) claims.get("name"));
+    }
+
+    /**
+     * Lấy email từ token
+     */
+    public String extractEmail(String token) {
+        return extractClaim(token, claims -> (String) claims.get("email"));
+    }
+
+    /**
      * Xác thực token hợp lệ không (chữ ký, hạn, ...)
      */
     public boolean validateToken(String token) {
@@ -72,9 +119,11 @@ public class JwtUtil {
             return true;
         } catch (ExpiredJwtException e) {
             // Token hết hạn
+            System.out.println("Token expired: " + e.getMessage());
             return false;
         } catch (JwtException e) {
             // Token không hợp lệ
+            System.out.println("Token invalid: " + e.getMessage());
             return false;
         }
     }

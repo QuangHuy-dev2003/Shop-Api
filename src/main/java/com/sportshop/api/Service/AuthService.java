@@ -112,7 +112,7 @@ public class AuthService {
         }
 
         // Tạo tokens
-        String accessToken = jwtUtil.generateAccessToken(user.getEmail());
+        String accessToken = jwtUtil.generateAccessToken(user.getEmail(), user.getRoleId(), user.getFullName());
         String refreshToken = jwtUtil.generateRefreshToken(user.getEmail());
 
         // Lưu refresh token
@@ -126,6 +126,7 @@ public class AuthService {
                 user.getPhone(),
                 user.getGender().toString(),
                 user.getAvatar(),
+                user.getRoleId(),
                 user.getFirstLogin());
 
         return new AuthResponse(
@@ -189,50 +190,56 @@ public class AuthService {
      */
     @Transactional
     public AuthResponse refreshToken(String refreshToken) {
-        // Xác thực refresh token
-        if (!jwtUtil.validateToken(refreshToken)) {
-            throw new RuntimeException("Refresh token không hợp lệ");
-        }
+        try {
+            // Xác thực refresh token
+            if (!jwtUtil.validateToken(refreshToken)) {
+                throw new RuntimeException("Refresh token không hợp lệ");
+            }
 
-        // Tìm refresh token trong database
-        RefreshToken token = refreshTokenRepository.findByToken(refreshToken)
-                .orElseThrow(() -> new RuntimeException("Refresh token không tồn tại"));
+            // Tìm refresh token trong database
+            RefreshToken token = refreshTokenRepository.findByToken(refreshToken)
+                    .orElseThrow(() -> new RuntimeException("Refresh token không tồn tại"));
 
-        // Kiểm tra token đã hết hạn chưa
-        if (token.isExpired()) {
+            // Kiểm tra token đã hết hạn chưa
+            if (token.isExpired()) {
+                refreshTokenRepository.delete(token);
+                throw new RuntimeException("Refresh token đã hết hạn");
+            }
+
+            // Lấy thông tin user
+            String email = jwtUtil.extractSubject(refreshToken); // Refresh token vẫn dùng subject
+            Users user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy user"));
+
+            // Tạo tokens mới
+            String newAccessToken = jwtUtil.generateAccessToken(email, user.getRoleId(), user.getFullName());
+            String newRefreshToken = jwtUtil.generateRefreshToken(email);
+
+            // Xóa refresh token cũ và lưu mới
             refreshTokenRepository.delete(token);
-            throw new RuntimeException("Refresh token đã hết hạn");
+            saveRefreshToken(user, newRefreshToken);
+
+            // Tạo response
+            AuthResponse.UserInfo userInfo = new AuthResponse.UserInfo(
+                    user.getId(),
+                    user.getFullName(),
+                    user.getEmail(),
+                    user.getPhone(),
+                    user.getGender().toString(),
+                    user.getAvatar(),
+                    user.getRoleId(),
+                    user.getFirstLogin());
+
+            return new AuthResponse(
+                    newAccessToken,
+                    newRefreshToken,
+                    "Bearer",
+                    jwtConfig.getAccessTokenExpirationMs(),
+                    userInfo);
+        } catch (Exception e) {
+            System.err.println("Refresh token error: " + e.getMessage());
+            throw e;
         }
-
-        // Lấy thông tin user
-        String email = jwtUtil.extractSubject(refreshToken);
-        Users user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy user"));
-
-        // Tạo tokens mới
-        String newAccessToken = jwtUtil.generateAccessToken(email);
-        String newRefreshToken = jwtUtil.generateRefreshToken(email);
-
-        // Xóa refresh token cũ và lưu mới
-        refreshTokenRepository.delete(token);
-        saveRefreshToken(user, newRefreshToken);
-
-        // Tạo response
-        AuthResponse.UserInfo userInfo = new AuthResponse.UserInfo(
-                user.getId(),
-                user.getFullName(),
-                user.getEmail(),
-                user.getPhone(),
-                user.getGender().toString(),
-                user.getAvatar(),
-                user.getFirstLogin());
-
-        return new AuthResponse(
-                newAccessToken,
-                newRefreshToken,
-                "Bearer",
-                jwtConfig.getAccessTokenExpirationMs(),
-                userInfo);
     }
 
     /**
@@ -255,6 +262,8 @@ public class AuthService {
         refreshToken.setToken(token);
         refreshToken.setExpiresAt(java.time.LocalDateTime.now().plusDays(7)); // 7 ngày
         refreshTokenRepository.save(refreshToken);
+        System.out.println(
+                "Refresh token saved for user: " + user.getEmail() + ", token: " + token.substring(0, 20) + "...");
     }
 
     /**
@@ -332,20 +341,19 @@ public class AuthService {
     }
 
     /**
-     * Xác thực OTP và đổi mật khẩu mới
+     * Cập nhật mật khẩu theo email
      */
     @Transactional
-    public RegisterResponse forgotPasswordVerify(String email, String otpCode, String newPassword) {
+    public RegisterResponse updatePasswordByEmail(String email, String newPassword) {
         Users user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy tài khoản với email này"));
-        boolean isValidOTP = emailOTPService.verifyOTP(user.getId(), otpCode);
-        if (!isValidOTP) {
-            throw new RuntimeException("Mã OTP không hợp lệ hoặc đã hết hạn");
-        }
+
+        // Cập nhật mật khẩu mới
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
+
         return new RegisterResponse(
-                "Đổi mật khẩu thành công! Bạn có thể đăng nhập với mật khẩu mới.",
+                "Cập nhật mật khẩu thành công! Bạn có thể đăng nhập với mật khẩu mới.",
                 user.getEmail(),
                 user.getId());
     }

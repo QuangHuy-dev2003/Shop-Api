@@ -50,7 +50,7 @@ public class Payments {
 
     public enum PaymentMethod {
         BANK_TRANSFER,
-        CASH_ON_DELIVERY
-
+        CASH_ON_DELIVERY,
+        VNPAY
     }
 }

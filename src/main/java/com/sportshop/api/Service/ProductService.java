@@ -38,11 +38,17 @@ import com.sportshop.api.Domain.Brand;
 import com.sportshop.api.Domain.Product_images;
 import com.sportshop.api.Domain.Product_variants;
 import com.sportshop.api.Domain.Request.Product.CreateProductRequest;
+import com.sportshop.api.Domain.Request.Product.UpdateProductRequest;
+
 import com.sportshop.api.Repository.ProductRepository;
 import com.sportshop.api.Repository.CategoryRepository;
 import com.sportshop.api.Repository.BrandRepository;
 import com.sportshop.api.Repository.ProductImageRepository;
 import com.sportshop.api.Repository.ProductVariantsRepository;
+import com.sportshop.api.Repository.ProductReviewsRepository;
+import com.sportshop.api.Repository.CartItemRepository;
+import com.sportshop.api.Repository.FavoritesRepository;
+import com.sportshop.api.Repository.OrderItemsRepository;
 
 @Service
 public class ProductService {
@@ -55,9 +61,16 @@ public class ProductService {
     private final CloudinaryService cloudinaryService;
     private final ObjectMapper objectMapper;
 
+    private final ProductReviewsRepository productReviewsRepository;
+    private final CartItemRepository cartItemRepository;
+    private final FavoritesRepository favoritesRepository;
+    private final OrderItemsRepository orderItemsRepository;
+
     public ProductService(ProductRepository productRepository, CategoryRepository categoryRepository,
             BrandRepository brandRepository, ProductImageRepository productImageRepository,
-            ProductVariantsRepository productVariantsRepository, CloudinaryService cloudinaryService) {
+            ProductVariantsRepository productVariantsRepository, CloudinaryService cloudinaryService,
+            ProductReviewsRepository productReviewsRepository, CartItemRepository cartItemRepository,
+            FavoritesRepository favoritesRepository, OrderItemsRepository orderItemsRepository) {
         this.productRepository = productRepository;
         this.categoryRepository = categoryRepository;
         this.brandRepository = brandRepository;
@@ -65,6 +78,10 @@ public class ProductService {
         this.productVariantsRepository = productVariantsRepository;
         this.cloudinaryService = cloudinaryService;
         this.objectMapper = new ObjectMapper();
+        this.productReviewsRepository = productReviewsRepository;
+        this.cartItemRepository = cartItemRepository;
+        this.favoritesRepository = favoritesRepository;
+        this.orderItemsRepository = orderItemsRepository;
     }
 
     // Lấy tất cả sản phẩm (trả về response chuẩn)
@@ -82,7 +99,7 @@ public class ProductService {
     }
 
     /**
-     * Tạo mới hoặc cập nhật sản phẩm (nếu id null thì tạo mới, có id thì cập nhật)
+     * Tạo mới sản phẩm
      * 
      * @param id          id sản phẩm (null nếu tạo mới)
      * @param productJson JSON string thông tin sản phẩm (bao gồm variants,
@@ -112,6 +129,7 @@ public class ProductService {
 
             // Set các trường cơ bản
             product.setName(request.getName());
+            product.setProductCode(request.getProductCode());
             product.setDescription(request.getDescription());
             product.setPrice(request.getPrice());
             product.setSale(request.getSale());
@@ -203,13 +221,32 @@ public class ProductService {
     public void deleteProduct(Long id) {
         Products product = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm với ID: " + id));
-        // Xóa ảnh trên Cloudinary
+        // Xóa ảnh trên Cloudinary và DB
         deleteProductImagesOnCloudinary(product);
-        // Xóa ảnh trong DB
         productImageRepository.deleteByProductId(product.getId());
-        // Xóa variants
+
+        List<Long> variantIds = productVariantsRepository.findByProductId(product.getId()).stream()
+                .map(Product_variants::getId)
+                .collect(Collectors.toList());
+        for (Long variantId : variantIds) {
+            orderItemsRepository.setVariantIdNull(variantId);
+        }
+        // Xóa biến thể
         productVariantsRepository.deleteByProductId(product.getId());
-        // Xóa sản phẩm
+
+        // Xóa đánh giá
+        productReviewsRepository.deleteByProductId(product.getId());
+
+        // Xóa sản phẩm khỏi giỏ hàng
+        cartItemRepository.deleteByProductId(product.getId());
+
+        // Xóa sản phẩm khỏi yêu thích
+        favoritesRepository.deleteByProductId(product.getId());
+
+        // Giữ lịch sử đơn hàng: set product_id = null ở order_items
+        orderItemsRepository.setProductIdNull(product.getId());
+
+        // Cuối cùng xóa sản phẩm
         productRepository.delete(product);
     }
 
@@ -233,66 +270,13 @@ public class ProductService {
         }
     }
 
-    /**
-     * Chuyển đổi Products thành ProductResponse
-     */
-    private ProductResponse convertToProductResponse(Products product, List<String> additionalImages,
-            List<CreateProductRequest.ProductVariantRequest> variants) {
-        ProductResponse response = new ProductResponse();
-        response.setId(product.getId());
-        response.setName(product.getName());
-        response.setDescription(product.getDescription());
-        response.setPrice(product.getPrice());
-        response.setSale(product.getSale());
-        response.setSalePrice(product.getSalePrice());
-        response.setIsActive(product.getIsActive());
-        response.setImageUrl(product.getImageUrl());
-        response.setCreatedAt(product.getCreatedAt());
-        response.setAdditionalImages(additionalImages);
-
-        // Set category
-        if (product.getCategory() != null) {
-            ProductResponse.CategoryResponse categoryResponse = new ProductResponse.CategoryResponse();
-            categoryResponse.setId(product.getCategory().getId());
-            categoryResponse.setName(product.getCategory().getName());
-            categoryResponse.setDescription(product.getCategory().getDescription());
-            response.setCategory(categoryResponse);
-        }
-
-        // Set brand
-        if (product.getBrand() != null) {
-            ProductResponse.BrandResponse brandResponse = new ProductResponse.BrandResponse();
-            brandResponse.setId(product.getBrand().getId());
-            brandResponse.setName(product.getBrand().getName());
-            brandResponse.setDescription(product.getBrand().getDescription());
-            brandResponse.setLogoUrl(product.getBrand().getLogoUrl());
-            response.setBrand(brandResponse);
-        }
-
-        // Set variants
-        if (variants != null) {
-            List<ProductResponse.ProductVariantResponse> variantResponses = variants.stream()
-                    .map(variantRequest -> {
-                        ProductResponse.ProductVariantResponse variantResponse = new ProductResponse.ProductVariantResponse();
-                        variantResponse.setSize(variantRequest.getSize().name());
-                        variantResponse.setColor(variantRequest.getColor());
-                        variantResponse.setStockQuantity(variantRequest.getStockQuantity());
-                        variantResponse.setPrice(
-                                variantRequest.getPrice() != null ? variantRequest.getPrice() : product.getPrice());
-                        return variantResponse;
-                    })
-                    .collect(Collectors.toList());
-            response.setVariants(variantResponses);
-        }
-
-        return response;
-    }
-
     // Chuyển đổi Products thành ProductResponse
     private ProductResponse convertToProductResponse(Products product) {
         // Fetch images from DB
         List<Product_images> images = productImageRepository.findByProductId(product.getId());
         List<String> imageUrls = images.stream().map(Product_images::getImageUrl).collect(Collectors.toList());
+        List<String> imageColors = images.stream().map(Product_images::getColor).collect(Collectors.toList());
+        List<Long> imageIds = images.stream().map(Product_images::getId).collect(Collectors.toList());
         // Fetch variants from DB
         List<Product_variants> variants = productVariantsRepository.findByProductId(product.getId());
         List<ProductResponse.ProductVariantResponse> variantResponses = variants.stream().map(variant -> {
@@ -307,15 +291,19 @@ public class ProductService {
         // Build response
         ProductResponse response = new ProductResponse();
         response.setId(product.getId());
+        response.setProductCode(product.getProductCode());
         response.setName(product.getName());
         response.setDescription(product.getDescription());
         response.setPrice(product.getPrice());
         response.setSale(product.getSale());
         response.setSalePrice(product.getSalePrice());
         response.setIsActive(product.getIsActive());
+        response.setStockQuantity(product.getStockQuantity());
         response.setImageUrl(product.getImageUrl());
         response.setCreatedAt(product.getCreatedAt());
         response.setAdditionalImages(imageUrls);
+        response.setImageColors(imageColors);
+        response.setImageIds(imageIds);
         // Set category, brand
         if (product.getCategory() != null) {
             ProductResponse.CategoryResponse categoryResponse = new ProductResponse.CategoryResponse();
@@ -447,7 +435,6 @@ public class ProductService {
             String sizeStr = getCellValueAsString(row.getCell(6));
             Double price = getCellValueAsDouble(row.getCell(7));
             Integer stockQuantity = getCellValueAsInteger(row.getCell(8));
-            String imageUrls = getCellValueAsString(row.getCell(9));
 
             // Validation
             if (productCode == null || productCode.trim().isEmpty()) {
@@ -1025,6 +1012,122 @@ public class ProductService {
             return imageUrls;
         } catch (Exception e) {
             throw new RuntimeException("Lỗi upload ảnh: " + e.getMessage(), e);
+        }
+    }
+
+    @Transactional
+    public ProductResponse smartUpdateProduct(Long id, String productJson, List<MultipartFile> images) {
+        try {
+            com.sportshop.api.Domain.Request.Product.UpdateProductRequest request = objectMapper.readValue(productJson,
+                    com.sportshop.api.Domain.Request.Product.UpdateProductRequest.class);
+
+            Products product = productRepository.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm"));
+
+            // Cập nhật các trường cơ bản nếu có
+            if (request.getName() != null)
+                product.setName(request.getName());
+            if (request.getProductCode() != null)
+                product.setProductCode(request.getProductCode());
+            if (request.getDescription() != null)
+                product.setDescription(request.getDescription());
+            if (request.getPrice() != null)
+                product.setPrice(request.getPrice());
+            if (request.getSale() != null)
+                product.setSale(request.getSale());
+            if (request.getIsActive() != null)
+                product.setIsActive(request.getIsActive());
+            if (request.getCategoryId() != null) {
+                Category category = categoryRepository.findById(request.getCategoryId())
+                        .orElseThrow(() -> new RuntimeException("Không tìm thấy danh mục"));
+                product.setCategory(category);
+            }
+            if (request.getBrandId() != null) {
+                Brand brand = brandRepository.findById(request.getBrandId())
+                        .orElseThrow(() -> new RuntimeException("Không tìm thấy thương hiệu"));
+                product.setBrand(brand);
+            }
+
+            // Tính và lưu salePrice nếu có sale và price
+            if (product.getSale() != null && product.getSale() > 0 && product.getPrice() != null) {
+                java.math.BigDecimal salePrice = product.getPrice()
+                        .multiply(java.math.BigDecimal.valueOf(100 - product.getSale()))
+                        .divide(java.math.BigDecimal.valueOf(100), java.math.RoundingMode.HALF_UP);
+                product.setSalePrice(salePrice);
+            } else {
+                product.setSalePrice(null);
+            }
+
+            // Xử lý ảnh mới (nếu có)
+            if (images != null && !images.isEmpty()) {
+                List<String> imageUrls = cloudinaryService.uploadMultipleImages(images, "products");
+                List<String> imageColors = request.getImageColors();
+                for (int i = 0; i < imageUrls.size(); i++) {
+                    Product_images img = new Product_images();
+                    img.setProduct(product);
+                    img.setImageUrl(imageUrls.get(i));
+                    if (imageColors != null && imageColors.size() > i) {
+                        img.setColor(imageColors.get(i));
+                    }
+                    productImageRepository.save(img);
+                }
+                // Nếu chưa có ảnh đại diện thì set ảnh đầu tiên
+                if (product.getImageUrl() == null && !imageUrls.isEmpty()) {
+                    product.setImageUrl(imageUrls.get(0));
+                }
+            }
+
+            // Xử lý xóa ảnh (nếu có)
+            if (request.getImageIdsToDelete() != null && !request.getImageIdsToDelete().isEmpty()) {
+                for (Long imageId : request.getImageIdsToDelete()) {
+                    Product_images img = productImageRepository.findById(imageId)
+                            .orElseThrow(() -> new RuntimeException("Không tìm thấy ảnh"));
+                    // TODO: Kiểm tra liên quan biến thể nếu cần
+                    cloudinaryService.deleteImage(img.getImageUrl());
+                    productImageRepository.delete(img);
+                }
+            }
+
+            // Xử lý biến thể (thêm mới/cập nhật/xóa)
+            if (request.getVariants() != null) {
+                for (com.sportshop.api.Domain.Request.Product.UpdateProductRequest.VariantDTO v : request
+                        .getVariants()) {
+                    if (v.getId() == null) {
+                        // Thêm mới
+                        Product_variants variant = new Product_variants();
+                        variant.setProduct(product);
+                        variant.setSize(v.getSize());
+                        variant.setColor(v.getColor());
+                        variant.setStockQuantity(v.getStockQuantity());
+                        variant.setPrice(v.getPrice());
+                        productVariantsRepository.save(variant);
+                    } else {
+                        // Cập nhật
+                        Product_variants variant = productVariantsRepository.findById(v.getId())
+                                .orElseThrow(() -> new RuntimeException("Không tìm thấy biến thể"));
+                        if (v.getSize() != null)
+                            variant.setSize(v.getSize());
+                        if (v.getColor() != null)
+                            variant.setColor(v.getColor());
+                        if (v.getStockQuantity() != null)
+                            variant.setStockQuantity(v.getStockQuantity());
+                        if (v.getPrice() != null)
+                            variant.setPrice(v.getPrice());
+                        productVariantsRepository.save(variant);
+                    }
+                }
+                // Xử lý xóa biến thể nếu có
+                if (request.getVariantIdsToDelete() != null) {
+                    for (Long variantId : request.getVariantIdsToDelete()) {
+                        productVariantsRepository.deleteById(variantId);
+                    }
+                }
+            }
+
+            productRepository.save(product);
+            return convertToProductResponse(product);
+        } catch (Exception e) {
+            throw new RuntimeException("Lỗi cập nhật sản phẩm: " + e.getMessage(), e);
         }
     }
 }

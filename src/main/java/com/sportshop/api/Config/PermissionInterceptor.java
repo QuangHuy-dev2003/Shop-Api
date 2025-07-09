@@ -84,7 +84,7 @@ public class PermissionInterceptor implements HandlerInterceptor {
 
         try {
             // Xác thực token
-            String email = jwtUtil.extractSubject(token);
+            String email = jwtUtil.extractEmail(token);
             if (email == null) {
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 response.setContentType("application/json;charset=UTF-8");
@@ -106,6 +106,17 @@ public class PermissionInterceptor implements HandlerInterceptor {
             }
 
             Users user = userOpt.get();
+
+            // Kiểm tra role_id từ token có khớp với database không
+            Long tokenRoleId = jwtUtil.extractRoleId(token);
+            if (tokenRoleId != null && !tokenRoleId.equals(user.getRoleId())) {
+                System.out
+                        .println("==> Role mismatch: Token roleId=" + tokenRoleId + ", DB roleId=" + user.getRoleId());
+                // Cập nhật role_id trong database từ token
+                user.setRoleId(tokenRoleId);
+                userRepository.save(user);
+                System.out.println("==> Updated user roleId to match token");
+            }
 
             System.out.println("==> Email: " + user.getEmail() + ", roleId: " + user.getRoleId());
 

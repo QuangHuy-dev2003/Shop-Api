@@ -36,7 +36,7 @@ public class ProductController {
 
     // Lấy sản phẩm theo ID
     @GetMapping("/products/{id}")
-    public ResponseEntity<ApiResponse<ProductResponse>> getProductById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<ProductResponse>> getProductById(@PathVariable("id") Long id) {
         ProductResponse product = productService.getProductResponseById(id);
         return ResponseEntity.ok(ApiResponse.success(product, "Lấy sản phẩm thành công"));
     }
@@ -54,16 +54,16 @@ public class ProductController {
     // Cập nhật sản phẩm
     @PutMapping("/products/{id}")
     public ResponseEntity<ApiResponse<ProductResponse>> updateProduct(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @RequestPart("product") String productJson,
             @RequestPart(value = "images", required = false) List<MultipartFile> images) {
-        ProductResponse updated = productService.createOrUpdateProduct(id, productJson, images);
+        ProductResponse updated = productService.smartUpdateProduct(id, productJson, images);
         return ResponseEntity.ok(ApiResponse.success(updated, "Cập nhật sản phẩm thành công"));
     }
 
     // Xóa sản phẩm (xóa luôn ảnh trên Cloudinary)
     @DeleteMapping("/products/{id}")
-    public ResponseEntity<ApiResponse<String>> deleteProduct(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<String>> deleteProduct(@PathVariable("id") Long id) {
         productService.deleteProduct(id);
         return ResponseEntity.ok(ApiResponse.success("Xóa sản phẩm thành công"));
     }

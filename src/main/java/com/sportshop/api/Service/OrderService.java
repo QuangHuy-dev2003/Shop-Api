@@ -26,6 +26,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import java.time.LocalDate;
+import java.util.Map;
 
 /**
  * Service xử lý logic đặt hàng
@@ -44,6 +45,7 @@ public class OrderService {
     private final PaymentsRepository paymentsRepository;
     private final ProductImageRepository productImageRepository;
     private final UserUsedDiscountCodeRepository userUsedDiscountCodeRepository;
+    private final VNPayService vnPayService;
 
     public OrderService(OrdersRepository ordersRepository,
             OrderItemsRepository orderItemsRepository,
@@ -56,7 +58,8 @@ public class OrderService {
             TemplateEngine templateEngine,
             PaymentsRepository paymentsRepository,
             ProductImageRepository productImageRepository,
-            UserUsedDiscountCodeRepository userUsedDiscountCodeRepository) {
+            UserUsedDiscountCodeRepository userUsedDiscountCodeRepository,
+            VNPayService vnPayService) {
         this.ordersRepository = ordersRepository;
         this.orderItemsRepository = orderItemsRepository;
         this.cartService = cartService;
@@ -69,6 +72,7 @@ public class OrderService {
         this.paymentsRepository = paymentsRepository;
         this.productImageRepository = productImageRepository;
         this.userUsedDiscountCodeRepository = userUsedDiscountCodeRepository;
+        this.vnPayService = vnPayService;
     }
 
     // Lấy entity Discounts từ code
@@ -206,6 +210,8 @@ public class OrderService {
         Payments.PaymentMethod paymentMethod;
         if (order.getPaymentMethod() == Orders.PaymentMethod.CASH_ON_DELIVERY) {
             paymentMethod = Payments.PaymentMethod.CASH_ON_DELIVERY;
+        } else if (order.getPaymentMethod() == Orders.PaymentMethod.VNPAY) {
+            paymentMethod = Payments.PaymentMethod.VNPAY;
         } else {
             paymentMethod = Payments.PaymentMethod.BANK_TRANSFER;
         }
@@ -564,5 +570,81 @@ public class OrderService {
         order.setStatus(Orders.OrderStatus.CANCELLED);
         ordersRepository.save(order);
         return true;
+    }
+
+    /**
+     * Tạo URL thanh toán VNPay cho đơn hàng
+     * 
+     * @param orderId ID đơn hàng
+     * @return URL thanh toán VNPay
+     */
+    public String createVNPayPaymentUrl(Long orderId) {
+        Orders order = ordersRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng!"));
+
+        if (order.getPaymentMethod() != Orders.PaymentMethod.VNPAY) {
+            throw new RuntimeException("Đơn hàng này không sử dụng phương thức thanh toán VNPay!");
+        }
+
+        String orderInfo = "Thanh toan don hang " + order.getOrderCode();
+        return vnPayService.createPaymentUrl(order.getOrderCode(), order.getTotal_amount(), orderInfo, null, "vn");
+    }
+
+    /**
+     * Xử lý callback từ VNPay và cập nhật trạng thái đơn hàng
+     * 
+     * @param params Các tham số từ VNPay callback
+     * @return true nếu xử lý thành công
+     */
+    @Transactional
+    public boolean processVNPayCallback(Map<String, String> params) {
+        // Xác thực callback
+        if (!vnPayService.verifyPaymentResponse(params)) {
+            throw new RuntimeException("Invalid VNPay signature");
+        }
+
+        String vnp_ResponseCode = params.get("vnp_ResponseCode");
+        String vnp_TxnRef = params.get("vnp_TxnRef");
+        String vnp_Amount = params.get("vnp_Amount");
+        String vnp_TransactionNo = params.get("vnp_TransactionNo");
+
+        // Tìm đơn hàng theo orderCode
+        Orders order = ordersRepository.findAll((root, query, cb) -> cb.equal(root.get("orderCode"), vnp_TxnRef))
+                .stream().findFirst()
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng với mã: " + vnp_TxnRef));
+
+        // Kiểm tra số tiền
+        Long expectedAmount = order.getTotal_amount() * 100; // VNPay trả về số tiền đã nhân 100
+        if (!expectedAmount.toString().equals(vnp_Amount)) {
+            throw new RuntimeException("Số tiền không khớp!");
+        }
+
+        if ("00".equals(vnp_ResponseCode)) {
+            // Thanh toán thành công
+            order.setPaymentStatus(Orders.PaymentStatus.PAID);
+            ordersRepository.save(order);
+
+            // Cập nhật payment
+            Payments payment = paymentsRepository.findByOrder(order)
+                    .stream().findFirst()
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy payment cho đơn hàng!"));
+            payment.setPaymentStatus(Payments.PaymentStatus.PAID);
+            paymentsRepository.save(payment);
+
+            return true;
+        } else {
+            // Thanh toán thất bại
+            order.setPaymentStatus(Orders.PaymentStatus.UNPAID);
+            ordersRepository.save(order);
+
+            // Cập nhật payment
+            Payments payment = paymentsRepository.findByOrder(order)
+                    .stream().findFirst()
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy payment cho đơn hàng!"));
+            payment.setPaymentStatus(Payments.PaymentStatus.FAILED);
+            paymentsRepository.save(payment);
+
+            return false;
+        }
     }
 }

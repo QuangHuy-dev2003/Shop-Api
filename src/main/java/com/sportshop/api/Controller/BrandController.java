@@ -33,7 +33,7 @@ public class BrandController {
      * Lấy thương hiệu theo ID
      */
     @GetMapping("/brands/{id}")
-    public ResponseEntity<ApiResponse<Brand>> getBrandById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Brand>> getBrandById(@PathVariable("id") Long id) {
         Optional<Brand> brand = brandService.getBrandById(id);
         if (brand.isPresent()) {
             return ResponseEntity.ok(ApiResponse.success(brand.get(), "Lấy thông tin thương hiệu thành công"));
@@ -61,7 +61,7 @@ public class BrandController {
      */
     @PutMapping("/brands/{id}")
     public ResponseEntity<ApiResponse<Brand>> updateBrand(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @RequestPart("brand") String brandJson,
             @RequestPart(value = "logo", required = false) MultipartFile logoFile) {
         Brand brand = brandService.parseBrandJson(brandJson);
@@ -73,7 +73,7 @@ public class BrandController {
      * Xóa thương hiệu (hard delete)
      */
     @DeleteMapping("/brands/{id}")
-    public ResponseEntity<ApiResponse<String>> deleteBrand(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<String>> deleteBrand(@PathVariable("id") Long id) {
         try {
             brandService.hardDeleteBrand(id);
             return ResponseEntity.ok(ApiResponse.success("Xóa thương hiệu vĩnh viễn thành công"));

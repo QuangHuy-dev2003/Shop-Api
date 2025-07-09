@@ -30,10 +30,10 @@ public class CategoryController {
     }
 
     /**
-     * Lấy danh mục theo ID
+     * Lấy danh mục theo ID`
      */
     @GetMapping("/categories/{id}")
-    public ResponseEntity<ApiResponse<Category>> getCategoryById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Category>> getCategoryById(@PathVariable("id") Long id) {
         Optional<Category> category = categoryService.getCategoryById(id);
         if (category.isPresent()) {
             return ResponseEntity.ok(ApiResponse.success(category.get(), "Lấy thông tin danh mục thành công"));
@@ -57,7 +57,7 @@ public class CategoryController {
      * Cập nhật thông tin danh mục
      */
     @PutMapping("/categories/{id}")
-    public ResponseEntity<ApiResponse<Category>> updateCategory(@PathVariable Long id,
+    public ResponseEntity<ApiResponse<Category>> updateCategory(@PathVariable("id") Long id,
             @Valid @RequestBody Category categoryDetails) {
         try {
             Category updatedCategory = categoryService.updateCategory(id, categoryDetails);
@@ -72,7 +72,7 @@ public class CategoryController {
      * Xóa danh mục
      */
     @DeleteMapping("/categories/{id}")
-    public ResponseEntity<ApiResponse<String>> deleteCategory(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<String>> deleteCategory(@PathVariable("id") Long id) {
         try {
             categoryService.deleteCategory(id);
             return ResponseEntity.ok(ApiResponse.success("Xóa danh mục thành công"));

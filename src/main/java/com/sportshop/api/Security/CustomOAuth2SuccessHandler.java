@@ -5,6 +5,7 @@ import com.sportshop.api.Repository.UserRepository;
 import com.sportshop.api.Repository.RefreshTokenRepository;
 import com.sportshop.api.Domain.Users;
 import com.sportshop.api.Domain.RefreshToken;
+import com.sportshop.api.Domain.Reponse.ApiResponse;
 import com.sportshop.api.Domain.Reponse.Auth.AuthResponse;
 import com.sportshop.api.Config.JwtConfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -50,45 +51,15 @@ public class CustomOAuth2SuccessHandler implements AuthenticationSuccessHandler 
         String name = (String) oAuth2User.getAttributes().get("name");
         String avatar = (String) oAuth2User.getAttributes().get("picture");
 
-        System.out.println("=== OAuth2 Success Handler ===");
-        System.out.println("Email: " + email);
-        System.out.println("Name: " + name);
-        System.out.println("Avatar: " + avatar);
-
         // Lấy user từ database (đã được lưu trong CustomOAuth2UserService)
         Users user = userRepository.findByEmail(email).orElse(null);
         if (user == null) {
-            System.err.println("User not found in database after OAuth2 login!");
-            System.err.println("This means CustomOAuth2UserService.loadUser() was not called or failed!");
-
-            // Thử tạo user ngay tại đây để test
-            try {
-                System.out.println("Attempting to create user in CustomOAuth2SuccessHandler...");
-                user = new Users();
-                user.setEmail(email);
-                user.setFullName(name);
-                user.setAvatar(avatar);
-                user.setProvider(Users.Provider.GOOGLE);
-                user.setRoleId(2L);
-                user.setActive(true);
-                user.setFirstLogin(false);
-                user.setGender(Users.Gender.OTHER);
-                user.setPassword("GOOGLE_LOGIN_" + System.currentTimeMillis());
-
-                user = userRepository.save(user);
-                System.out.println("User created successfully in CustomOAuth2SuccessHandler with ID: " + user.getId());
-            } catch (Exception e) {
-                System.err.println("Failed to create user in CustomOAuth2SuccessHandler: " + e.getMessage());
-                e.printStackTrace();
-                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Failed to create user");
-                return;
-            }
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "User not found after OAuth2 login");
+            return;
         }
 
-        System.out.println("User found: ID=" + user.getId() + ", Active=" + user.getActive());
-
         // Tạo JWT tokens
-        String accessToken = jwtUtil.generateAccessToken(email);
+        String accessToken = jwtUtil.generateAccessToken(email, user.getRoleId(), user.getFullName());
         String refreshToken = jwtUtil.generateRefreshToken(email);
 
         // Lưu refresh token vào database
@@ -102,6 +73,7 @@ public class CustomOAuth2SuccessHandler implements AuthenticationSuccessHandler 
                 user.getPhone(),
                 user.getGender().toString(),
                 user.getAvatar(),
+                user.getRoleId(),
                 user.getFirstLogin());
 
         // Tạo auth response
@@ -119,16 +91,13 @@ public class CustomOAuth2SuccessHandler implements AuthenticationSuccessHandler 
                 authResponse,
                 LocalDateTime.now());
 
-        System.out.println("Auth response created successfully");
-
         // Redirect về frontend với response data
         String responseJson = objectMapper.writeValueAsString(apiResponse);
         String encodedResponse = URLEncoder.encode(responseJson, StandardCharsets.UTF_8);
 
-        String redirectUrl = String.format("http://localhost:3000/oauth-callback?response=%s",
+        String redirectUrl = String.format("http://localhost:5174/oauth-callback?response=%s",
                 encodedResponse);
 
-        System.out.println("Redirecting to: " + redirectUrl);
         response.sendRedirect(redirectUrl);
     }
 
@@ -153,55 +122,6 @@ public class CustomOAuth2SuccessHandler implements AuthenticationSuccessHandler 
         newRefreshToken.setExpiresAt(LocalDateTime.now().plusSeconds(jwtConfig.getRefreshTokenExpirationMs() / 1000));
         newRefreshToken.setIsRevoked(false);
         refreshTokenRepository.save(newRefreshToken);
-
-        System.out.println("Refresh token saved to database");
     }
 
-    // Helper class for API response
-    private static class ApiResponse<T> {
-        private boolean success;
-        private String message;
-        private T data;
-        private LocalDateTime timestamp;
-
-        public ApiResponse(boolean success, String message, T data, LocalDateTime timestamp) {
-            this.success = success;
-            this.message = message;
-            this.data = data;
-            this.timestamp = timestamp;
-        }
-
-        // Getters and setters
-        public boolean isSuccess() {
-            return success;
-        }
-
-        public void setSuccess(boolean success) {
-            this.success = success;
-        }
-
-        public String getMessage() {
-            return message;
-        }
-
-        public void setMessage(String message) {
-            this.message = message;
-        }
-
-        public T getData() {
-            return data;
-        }
-
-        public void setData(T data) {
-            this.data = data;
-        }
-
-        public LocalDateTime getTimestamp() {
-            return timestamp;
-        }
-
-        public void setTimestamp(LocalDateTime timestamp) {
-            this.timestamp = timestamp;
-        }
-    }
 }

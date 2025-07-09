@@ -100,7 +100,7 @@ public class AuthController {
      * POST /api/auth/resend-otp
      */
     @PostMapping("/auth/resend-otp")
-    public ResponseEntity<ApiResponse<RegisterResponse>> resendOTP(@RequestParam String email) {
+    public ResponseEntity<ApiResponse<RegisterResponse>> resendOTP(@RequestParam("email") String email) {
         try {
             RegisterResponse response = authService.resendOTP(email);
             return ResponseEntity.ok(new ApiResponse<>(
@@ -124,6 +124,7 @@ public class AuthController {
     @PostMapping("/auth/refresh-token")
     public ResponseEntity<ApiResponse<AuthResponse>> refreshToken(@RequestParam String refreshToken) {
         try {
+            System.out.println("Refresh token request received: " + refreshToken.substring(0, 20) + "...");
             AuthResponse response = authService.refreshToken(refreshToken);
             return ResponseEntity.ok(new ApiResponse<>(
                     true,
@@ -131,6 +132,8 @@ public class AuthController {
                     response,
                     LocalDateTime.now()));
         } catch (Exception e) {
+            System.err.println("Refresh token error: " + e.getMessage());
+            e.printStackTrace();
             return ResponseEntity.badRequest().body(new ApiResponse<>(
                     false,
                     e.getMessage(),
@@ -179,7 +182,7 @@ public class AuthController {
      * POST /api/auth/forgot-password/request
      */
     @PostMapping("/auth/forgot-password/request")
-    public ResponseEntity<ApiResponse<RegisterResponse>> forgotPasswordRequest(@RequestParam String email) {
+    public ResponseEntity<ApiResponse<RegisterResponse>> forgotPasswordRequest(@RequestParam("email") String email) {
         try {
             RegisterResponse response = authService.forgotPasswordRequest(email);
             return ResponseEntity.ok(new ApiResponse<>(
@@ -197,18 +200,17 @@ public class AuthController {
     }
 
     /**
-     * Xác thực OTP và đổi mật khẩu mới
-     * POST /api/auth/forgot-password/verify
+     * Cập nhật mật khẩu theo email (không cần OTP)
+     * POST /api/auth/update-password
      */
-    @PostMapping("/auth/forgot-password/verify")
-    public ResponseEntity<ApiResponse<RegisterResponse>> forgotPasswordVerify(@RequestParam String email,
-            @RequestParam String otpCode,
-            @RequestParam String newPassword) {
+    @PostMapping("/auth/update-password")
+    public ResponseEntity<ApiResponse<RegisterResponse>> updatePassword(@RequestParam("email") String email,
+            @RequestParam("newPassword") String newPassword) {
         try {
-            RegisterResponse response = authService.forgotPasswordVerify(email, otpCode, newPassword);
+            RegisterResponse response = authService.updatePasswordByEmail(email, newPassword);
             return ResponseEntity.ok(new ApiResponse<>(
                     true,
-                    "Đổi mật khẩu thành công",
+                    "Cập nhật mật khẩu thành công",
                     response,
                     LocalDateTime.now()));
         } catch (Exception e) {

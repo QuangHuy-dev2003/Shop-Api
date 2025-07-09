@@ -25,6 +25,8 @@ public class UpdateUserRequest {
 
     private String gender;
 
+    private Boolean isActive;
+
     // Thông tin địa chỉ (không bắt buộc)
     private String addressLine;
     private String ward;

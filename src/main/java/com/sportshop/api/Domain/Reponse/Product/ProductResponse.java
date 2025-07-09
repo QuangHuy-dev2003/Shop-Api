@@ -12,17 +12,21 @@ import java.util.List;
 @AllArgsConstructor
 public class ProductResponse {
     private Long id;
+    private String productCode;
     private String name;
     private String description;
     private BigDecimal price;
     private Integer sale;
     private BigDecimal salePrice;
     private Boolean isActive;
+    private Integer stockQuantity;
     private String imageUrl;
     private LocalDateTime createdAt;
     private CategoryResponse category;
     private BrandResponse brand;
     private List<String> additionalImages;
+    private List<String> imageColors;
+    private List<Long> imageIds; // Thêm trường này để FE biết id của từng ảnh
     private List<ProductVariantResponse> variants;
 
     @Data

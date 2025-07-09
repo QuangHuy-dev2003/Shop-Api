@@ -28,7 +28,8 @@ public class ShippingAddressController {
      * Lấy danh sách địa chỉ của user
      */
     @GetMapping
-    public ResponseEntity<ApiResponse<List<ShippingAddressResponse>>> getUserAddresses(@PathVariable Long userId) {
+    public ResponseEntity<ApiResponse<List<ShippingAddressResponse>>> getUserAddresses(
+            @PathVariable("userId") Long userId) {
         List<ShippingAddressResponse> addresses = shippingAddressService.getUserAddresses(userId);
         return ResponseEntity.ok(ApiResponse.success(addresses, "Lấy danh sách địa chỉ thành công"));
     }
@@ -38,7 +39,7 @@ public class ShippingAddressController {
      */
     @PostMapping
     public ResponseEntity<ApiResponse<ShippingAddressResponse>> createAddress(
-            @PathVariable Long userId,
+            @PathVariable("userId") Long userId,
             @Valid @RequestBody CreateAddressRequest request) {
         ShippingAddressResponse address = shippingAddressService.createAddress(userId, request);
         return ResponseEntity.ok(ApiResponse.success(address, "Tạo địa chỉ thành công"));
@@ -49,8 +50,8 @@ public class ShippingAddressController {
      */
     @PutMapping("/{addressId}")
     public ResponseEntity<ApiResponse<ShippingAddressResponse>> updateAddress(
-            @PathVariable Long userId,
-            @PathVariable Long addressId,
+            @PathVariable("userId") Long userId,
+            @PathVariable("addressId") Long addressId,
             @Valid @RequestBody UpdateAddressRequest request) {
         ShippingAddressResponse address = shippingAddressService.updateAddress(userId, addressId, request);
         return ResponseEntity.ok(ApiResponse.success(address, "Cập nhật địa chỉ thành công"));
@@ -61,8 +62,8 @@ public class ShippingAddressController {
      */
     @PutMapping("/{addressId}/set-default")
     public ResponseEntity<ApiResponse<ShippingAddressResponse>> setDefaultAddress(
-            @PathVariable Long userId,
-            @PathVariable Long addressId) {
+            @PathVariable("userId") Long userId,
+            @PathVariable("addressId") Long addressId) {
         ShippingAddressResponse address = shippingAddressService.setDefaultAddress(userId, addressId);
         return ResponseEntity.ok(ApiResponse.success(address, "Đặt địa chỉ mặc định thành công"));
     }
@@ -72,8 +73,8 @@ public class ShippingAddressController {
      */
     @DeleteMapping("/{addressId}")
     public ResponseEntity<ApiResponse<String>> deleteAddress(
-            @PathVariable Long userId,
-            @PathVariable Long addressId) {
+            @PathVariable("userId") Long userId,
+            @PathVariable("addressId") Long addressId) {
         shippingAddressService.deleteAddress(userId, addressId);
         return ResponseEntity.ok(ApiResponse.success("Xóa địa chỉ thành công"));
     }

@@ -36,7 +36,7 @@ public class DiscountsController {
      * Lấy mã giảm giá theo ID
      */
     @GetMapping("/discounts/{id}")
-    public ResponseEntity<ApiResponse<DiscountResponse>> getDiscountById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<DiscountResponse>> getDiscountById(@PathVariable("id") Long id) {
         DiscountResponse discount = discountsService.getDiscountById(id);
         return ResponseEntity.ok(ApiResponse.success(discount, "Lấy mã giảm giá thành công"));
     }
@@ -66,7 +66,7 @@ public class DiscountsController {
      */
     @PutMapping("/discounts/{id}")
     public ResponseEntity<ApiResponse<DiscountResponse>> updateDiscount(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @Valid @RequestBody CreateDiscountRequest request) {
         DiscountResponse updated = discountsService.updateDiscount(id, request);
         return ResponseEntity.ok(ApiResponse.success(updated, "Cập nhật mã giảm giá thành công"));
@@ -76,7 +76,7 @@ public class DiscountsController {
      * Xóa mã giảm giá (soft delete)
      */
     @DeleteMapping("/discounts/{id}")
-    public ResponseEntity<ApiResponse<String>> deleteDiscount(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<String>> deleteDiscount(@PathVariable("id") Long id) {
         discountsService.deleteDiscount(id);
         return ResponseEntity.ok(ApiResponse.success("Xóa mã giảm giá thành công"));
     }
@@ -85,7 +85,7 @@ public class DiscountsController {
      * Kích hoạt/hủy kích hoạt mã giảm giá
      */
     @PatchMapping("/discounts/{id}/toggle")
-    public ResponseEntity<ApiResponse<DiscountResponse>> toggleDiscountStatus(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<DiscountResponse>> toggleDiscountStatus(@PathVariable("id") Long id) {
         DiscountResponse updated = discountsService.toggleDiscountStatus(id);
         String message = updated.getIsActive() ? "Kích hoạt mã giảm giá thành công"
                 : "Hủy kích hoạt mã giảm giá thành công";

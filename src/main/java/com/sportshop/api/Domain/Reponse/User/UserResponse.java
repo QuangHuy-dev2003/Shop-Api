@@ -15,5 +15,6 @@ public class UserResponse {
     private LocalDateTime createdAt;
     private String provider;
     private String avatar;
+    private Boolean isActive;
     private List<ShippingAddressResponse> shippingAddresses;
 }
