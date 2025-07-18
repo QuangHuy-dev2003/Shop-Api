@@ -28,7 +28,7 @@ public class CartController {
      * @return Thông tin giỏ hàng
      */
     @GetMapping("/cart/{userId}")
-    public ResponseEntity<ApiResponse<CartResponse>> getCart(@PathVariable Long userId) {
+    public ResponseEntity<ApiResponse<CartResponse>> getCart(@PathVariable("userId") Long userId) {
         CartResponse cart = cartService.getCartResponseByUserId(userId);
         return ResponseEntity.ok(ApiResponse.success(cart, "Lấy thông tin giỏ hàng thành công"));
     }
@@ -40,7 +40,7 @@ public class CartController {
      * @return Danh sách sản phẩm trong giỏ hàng
      */
     @GetMapping("/cart/{userId}/items")
-    public ResponseEntity<ApiResponse<List<CartItemResponse>>> getCartItems(@PathVariable Long userId) {
+    public ResponseEntity<ApiResponse<List<CartItemResponse>>> getCartItems(@PathVariable("userId") Long userId) {
         List<CartItemResponse> items = cartService.getCartItemResponses(userId);
         return ResponseEntity.ok(ApiResponse.success(items, "Lấy danh sách sản phẩm trong giỏ hàng thành công"));
     }
@@ -54,7 +54,7 @@ public class CartController {
      */
     @PostMapping("/cart/{userId}/items")
     public ResponseEntity<ApiResponse<CartResponse>> addCartItem(
-            @PathVariable Long userId,
+            @PathVariable("userId") Long userId,
             @Valid @RequestBody AddOrUpdateCartItemRequest request) {
         cartService.addCartItem(userId, request);
         CartResponse cart = cartService.getCartResponseByUserId(userId);
@@ -70,7 +70,7 @@ public class CartController {
      */
     @PutMapping("/cart/{userId}/items")
     public ResponseEntity<ApiResponse<CartResponse>> updateCartItem(
-            @PathVariable Long userId,
+            @PathVariable("userId") Long userId,
             @Valid @RequestBody AddOrUpdateCartItemRequest request) {
         cartService.updateCartItem(userId, request);
         CartResponse cart = cartService.getCartResponseByUserId(userId);
@@ -87,9 +87,9 @@ public class CartController {
      */
     @DeleteMapping("/cart/{userId}/items")
     public ResponseEntity<ApiResponse<CartResponse>> removeCartItem(
-            @PathVariable Long userId,
-            @RequestParam Long productId,
-            @RequestParam(required = false) Long variantId) {
+            @PathVariable("userId") Long userId,
+            @RequestParam(value = "productId") Long productId,
+            @RequestParam(value = "variantId", required = false) Long variantId) {
         cartService.removeCartItem(userId, productId, variantId);
         CartResponse cart = cartService.getCartResponseByUserId(userId);
         return ResponseEntity.ok(ApiResponse.success(cart, "Xóa sản phẩm khỏi giỏ hàng thành công"));
@@ -102,7 +102,7 @@ public class CartController {
      * @return Thông tin giỏ hàng sau khi xóa
      */
     @DeleteMapping("/cart/{userId}/items/all")
-    public ResponseEntity<ApiResponse<CartResponse>> clearCart(@PathVariable Long userId) {
+    public ResponseEntity<ApiResponse<CartResponse>> clearCart(@PathVariable("userId") Long userId) {
         cartService.clearCart(userId);
         CartResponse cart = cartService.getCartResponseByUserId(userId);
         return ResponseEntity.ok(ApiResponse.success(cart, "Xóa toàn bộ sản phẩm trong giỏ hàng thành công"));
@@ -115,7 +115,7 @@ public class CartController {
      * @return Trạng thái xóa
      */
     @DeleteMapping("/cart/{userId}")
-    public ResponseEntity<ApiResponse<String>> deleteCart(@PathVariable Long userId) {
+    public ResponseEntity<ApiResponse<String>> deleteCart(@PathVariable("userId") Long userId) {
         cartService.deleteCart(userId);
         return ResponseEntity.ok(ApiResponse.success("Xóa giỏ hàng thành công"));
     }
@@ -127,7 +127,8 @@ public class CartController {
      * @return Danh sách mã giảm giá hợp lệ
      */
     @GetMapping("/cart/{userId}/available-discounts")
-    public ResponseEntity<ApiResponse<List<DiscountResponse>>> getAvailableDiscounts(@PathVariable Long userId) {
+    public ResponseEntity<ApiResponse<List<DiscountResponse>>> getAvailableDiscounts(
+            @PathVariable("userId") Long userId) {
         List<DiscountResponse> discounts = cartService.getAvailableDiscountsForCart(userId);
         return ResponseEntity
                 .ok(ApiResponse.success(discounts, "Lấy danh sách mã giảm giá áp dụng được cho giỏ hàng thành công"));
@@ -142,9 +143,9 @@ public class CartController {
      */
     @PostMapping("/cart/{userId}/apply-discount")
     public ResponseEntity<ApiResponse<CartResponse>> applyDiscountToCart(
-            @PathVariable Long userId,
+            @PathVariable("userId") Long userId,
             @RequestBody ApplyDiscountRequest request) {
-        CartResponse cart = cartService.applyDiscountToCart(userId, request.getDiscountCode());
+        CartResponse cart = cartService.applyDiscountToCart(userId, request.getDiscountCodes());
         return ResponseEntity.ok(ApiResponse.success(cart, "Áp dụng mã giảm giá thành công"));
     }
 

@@ -19,6 +19,8 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
      */
     Optional<RefreshToken> findByToken(String token);
 
+    void deleteByToken(String token);
+
     /**
      * Tìm tất cả refresh token hợp lệ của user
      */
@@ -57,4 +59,6 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
      */
     @Query("SELECT COUNT(rt) FROM RefreshToken rt WHERE rt.user.id = :userId AND rt.isRevoked = false AND rt.expiresAt > :now")
     long countValidTokensByUserId(@Param("userId") Long userId, @Param("now") LocalDateTime now);
+
+    void deleteByUserId(Long id);
 }

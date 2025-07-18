@@ -316,6 +316,7 @@ public class UserService {
         response.setFullName(user.getFullName());
         response.setEmail(user.getEmail());
         response.setPhone(user.getPhone());
+        response.setGender(user.getGender());
         response.setRoleId(user.getRoleId());
         response.setFirstLogin(user.getFirstLogin());
         response.setCreatedAt(user.getCreatedAt());

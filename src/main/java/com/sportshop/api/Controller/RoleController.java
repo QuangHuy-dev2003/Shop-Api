@@ -102,7 +102,7 @@ public class RoleController {
      * GET /api/v1/roles/{id}
      */
     @GetMapping("/roles/{id}")
-    public ResponseEntity<ApiResponse<RoleResponse>> getRoleById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<RoleResponse>> getRoleById(@PathVariable("id") Long id) {
         try {
             RoleResponse role = roleService.getRoleById(id);
             return ResponseEntity.ok(new ApiResponse<>(
@@ -124,7 +124,7 @@ public class RoleController {
      * GET /api/v1/roles/search?name=admin
      */
     @GetMapping("/roles/search")
-    public ResponseEntity<ApiResponse<List<RoleResponse>>> searchRolesByName(@RequestParam String name) {
+    public ResponseEntity<ApiResponse<List<RoleResponse>>> searchRolesByName(@RequestParam("name") String name) {
         try {
             List<RoleResponse> roles = roleService.searchRolesByName(name);
             return ResponseEntity.ok(new ApiResponse<>(
@@ -147,7 +147,7 @@ public class RoleController {
      */
     @PutMapping("/roles/{id}")
     public ResponseEntity<ApiResponse<RoleResponse>> updateRole(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @Valid @RequestBody UpdateRoleRequest request) {
         try {
             RoleResponse response = roleService.updateRole(id, request);
@@ -170,7 +170,7 @@ public class RoleController {
      * DELETE /api/v1/roles/{id}
      */
     @DeleteMapping("/roles/{id}")
-    public ResponseEntity<ApiResponse<String>> deleteRole(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<String>> deleteRole(@PathVariable("id") Long id) {
         try {
             roleService.deleteRole(id);
             return ResponseEntity.ok(new ApiResponse<>(
@@ -193,7 +193,7 @@ public class RoleController {
      */
     @PostMapping("/roles/{id}/permissions")
     public ResponseEntity<ApiResponse<RoleResponse>> assignPermissionsToRole(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @RequestBody List<Long> permissionIds) {
         try {
             RoleResponse response = roleService.assignPermissionsToRole(id, permissionIds);
@@ -217,7 +217,7 @@ public class RoleController {
      */
     @DeleteMapping("/roles/{id}/permissions")
     public ResponseEntity<ApiResponse<RoleResponse>> removePermissionsFromRole(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @RequestBody List<Long> permissionIds) {
         try {
             RoleResponse response = roleService.removePermissionsFromRole(id, permissionIds);

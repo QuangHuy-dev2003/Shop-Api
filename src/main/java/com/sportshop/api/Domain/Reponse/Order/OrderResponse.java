@@ -23,12 +23,15 @@ public class OrderResponse {
     private Long discountAmount;
     private List<OrderItemInfo> items;
     private String orderCode;
+    private Long userId;
+    private String customerName;
 
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
     public static class OrderItemInfo {
         private Long productId;
+        private Long variantId;
         private String productName;
         private String size;
         private String color;

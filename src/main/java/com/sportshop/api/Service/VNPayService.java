@@ -9,24 +9,16 @@ import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import com.sportshop.api.Config.VNPayConfig;
 
 @Service
 public class VNPayService {
 
-    @Value("${vnp.TmnCode}")
-    private String vnpTmnCode;
+    private final VNPayConfig vnpayConfig;
 
-    @Value("${vnp.HashSecret}")
-    private String vnpHashSecret;
-
-    @Value("${vnp.Url}")
-    private String vnpUrl;
-
-    @Value("${vnp.ReturnUrl}")
-    private String vnpReturnUrl;
-
-    @Value("${vnp.TransactionQueryUrl}")
-    private String vnpTransactionQueryUrl;
+    public VNPayService(VNPayConfig vnpayConfig) {
+        this.vnpayConfig = vnpayConfig;
+    }
 
     /**
      * Tạo URL thanh toán VNPay
@@ -43,20 +35,19 @@ public class VNPayService {
         String vnp_Command = "pay";
         String vnp_TxnRef = orderId;
         String vnp_IpAddr = "127.0.0.1";
-        String vnp_TmnCode = this.vnpTmnCode;
 
         Map<String, String> vnp_Params = new HashMap<>();
         vnp_Params.put("vnp_Version", vnp_Version);
         vnp_Params.put("vnp_Command", vnp_Command);
-        vnp_Params.put("vnp_TmnCode", vnp_TmnCode);
-        vnp_Params.put("vnp_Amount", String.valueOf(amount * 100)); // VNPay yêu cầu số tiền nhân với 100
+        vnp_Params.put("vnp_TmnCode", vnpayConfig.getTmnCode());
+        vnp_Params.put("vnp_Amount", String.valueOf(amount * 100));
         vnp_Params.put("vnp_CurrCode", "VND");
         vnp_Params.put("vnp_BankCode", bankCode != null ? bankCode : "");
         vnp_Params.put("vnp_TxnRef", vnp_TxnRef);
         vnp_Params.put("vnp_OrderInfo", orderInfo);
         vnp_Params.put("vnp_OrderType", "other");
         vnp_Params.put("vnp_Locale", locale != null ? locale : "vn");
-        vnp_Params.put("vnp_ReturnUrl", vnpReturnUrl);
+        vnp_Params.put("vnp_ReturnUrl", vnpayConfig.getReturnUrl());
         vnp_Params.put("vnp_IpAddr", vnp_IpAddr);
         vnp_Params.put("vnp_CreateDate", LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")));
 
@@ -69,11 +60,9 @@ public class VNPayService {
             String fieldName = itr.next();
             String fieldValue = vnp_Params.get(fieldName);
             if ((fieldValue != null) && (fieldValue.length() > 0)) {
-                // Build hash data
                 hashData.append(fieldName);
                 hashData.append('=');
                 hashData.append(URLEncoder.encode(fieldValue, StandardCharsets.US_ASCII));
-                // Build query
                 query.append(URLEncoder.encode(fieldName, StandardCharsets.US_ASCII));
                 query.append('=');
                 query.append(URLEncoder.encode(fieldValue, StandardCharsets.US_ASCII));
@@ -84,9 +73,9 @@ public class VNPayService {
             }
         }
         String queryUrl = query.toString();
-        String vnp_SecureHash = hmacSHA512(vnpHashSecret, hashData.toString());
+        String vnp_SecureHash = vnpayConfig.hmacSHA512(vnpayConfig.getHashSecret(), hashData.toString());
         queryUrl += "&vnp_SecureHash=" + vnp_SecureHash;
-        return vnpUrl + "?" + queryUrl;
+        return vnpayConfig.getPayUrl() + "?" + queryUrl;
     }
 
     /**
@@ -100,18 +89,18 @@ public class VNPayService {
         if (vnp_SecureHash == null || vnp_SecureHash.isEmpty()) {
             return false;
         }
+        // Tạo bản copy để không mutate map gốc
+        Map<String, String> paramsCopy = new HashMap<>(params);
+        paramsCopy.remove("vnp_SecureHash");
+        paramsCopy.remove("vnp_SecureHashType");
 
-        // Remove vnp_SecureHash from params
-        params.remove("vnp_SecureHash");
-        params.remove("vnp_SecureHashType");
-
-        List<String> fieldNames = new ArrayList<>(params.keySet());
+        List<String> fieldNames = new ArrayList<>(paramsCopy.keySet());
         Collections.sort(fieldNames);
         StringBuilder hashData = new StringBuilder();
         Iterator<String> itr = fieldNames.iterator();
         while (itr.hasNext()) {
             String fieldName = itr.next();
-            String fieldValue = params.get(fieldName);
+            String fieldValue = paramsCopy.get(fieldName);
             if ((fieldValue != null) && (fieldValue.length() > 0)) {
                 hashData.append(fieldName);
                 hashData.append('=');
@@ -121,9 +110,8 @@ public class VNPayService {
                 }
             }
         }
-
-        String calculatedHash = hmacSHA512(vnpHashSecret, hashData.toString());
-        return calculatedHash.equals(vnp_SecureHash);
+        String calculatedHash = vnpayConfig.hmacSHA512(vnpayConfig.getHashSecret(), hashData.toString());
+        return calculatedHash.equalsIgnoreCase(vnp_SecureHash);
     }
 
     /**
@@ -135,7 +123,7 @@ public class VNPayService {
     public Map<String, String> queryTransactionStatus(String txnRef) {
         String vnp_Version = "2.1.0";
         String vnp_Command = "querydr";
-        String vnp_TmnCode = this.vnpTmnCode;
+        String vnp_TmnCode = vnpayConfig.getTmnCode();
         String vnp_TxnRef = txnRef;
         String vnp_OrderInfo = "Kiem tra giao dich";
         String vnp_TransDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
@@ -170,7 +158,7 @@ public class VNPayService {
             }
         }
         String queryUrl = query.toString();
-        String vnp_SecureHash = hmacSHA512(vnpHashSecret, hashData.toString());
+        String vnp_SecureHash = vnpayConfig.hmacSHA512(vnpayConfig.getHashSecret(), hashData.toString());
         queryUrl += "&vnp_SecureHash=" + vnp_SecureHash;
 
         // Trong thực tế, bạn sẽ gọi API này để kiểm tra trạng thái

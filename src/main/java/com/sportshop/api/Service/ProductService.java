@@ -98,6 +98,29 @@ public class ProductService {
         return convertToProductResponse(product);
     }
 
+    // Lấy tất cả sản phẩm sale
+    public List<ProductResponse> getAllSaleProducts() {
+        return productRepository.findAllSaleProducts().stream()
+                .map(this::convertToProductResponse)
+                .collect(Collectors.toList());
+    }
+
+    // Lấy top 10 sản phẩm sale theo id giảm dần
+    public List<ProductResponse> getTop10SaleProducts() {
+        return productRepository.findTop10SaleProducts().stream()
+                .limit(10)
+                .map(this::convertToProductResponse)
+                .collect(Collectors.toList());
+    }
+
+    // Lấy top 10 sản phẩm mới theo category name không thuộc sale
+    public List<ProductResponse> getTop10NewProductsByCategory(String categoryName) {
+        return productRepository.findTop10NewProductsByCategory(categoryName).stream()
+                .limit(10)
+                .map(this::convertToProductResponse)
+                .collect(Collectors.toList());
+    }
+
     /**
      * Tạo mới sản phẩm
      * 
@@ -1129,5 +1152,19 @@ public class ProductService {
         } catch (Exception e) {
             throw new RuntimeException("Lỗi cập nhật sản phẩm: " + e.getMessage(), e);
         }
+    }
+
+    // Search sản phẩm theo tên (LIKE, ignore case, chỉ lấy sản phẩm active, limit
+    // 5)
+    public List<ProductResponse> searchProductsByName(String keyword) {
+        return productRepository.searchActiveProductsByName(keyword).stream()
+                .map(product -> {
+                    ProductResponse resp = new ProductResponse();
+                    resp.setId(product.getId());
+                    resp.setName(product.getName());
+                    resp.setImageUrl(product.getImageUrl());
+                    return resp;
+                })
+                .toList();
     }
 }

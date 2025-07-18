@@ -4,13 +4,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import jakarta.validation.Valid;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 
 import com.sportshop.api.Service.ProductService;
-import com.sportshop.api.Domain.Request.Product.CreateProductRequest;
 import com.sportshop.api.Domain.Reponse.ApiResponse;
 import com.sportshop.api.Domain.Reponse.Product.ProductResponse;
 
@@ -39,6 +37,29 @@ public class ProductController {
     public ResponseEntity<ApiResponse<ProductResponse>> getProductById(@PathVariable("id") Long id) {
         ProductResponse product = productService.getProductResponseById(id);
         return ResponseEntity.ok(ApiResponse.success(product, "Lấy sản phẩm thành công"));
+    }
+
+    // Lấy tất cả sản phẩm sale
+    @GetMapping("/products/sale")
+    public ResponseEntity<ApiResponse<List<ProductResponse>>> getAllSaleProducts() {
+        List<ProductResponse> products = productService.getAllSaleProducts();
+        return ResponseEntity.ok(ApiResponse.success(products, "Lấy danh sách sản phẩm sale thành công"));
+    }
+
+    // Lấy top 10 sản phẩm sale theo id giảm dần
+    @GetMapping("/products/sale/top10")
+    public ResponseEntity<ApiResponse<List<ProductResponse>>> getTop10SaleProducts() {
+        List<ProductResponse> products = productService.getTop10SaleProducts();
+        return ResponseEntity.ok(ApiResponse.success(products, "Lấy top 10 sản phẩm sale thành công"));
+    }
+
+    // Lấy top 10 sản phẩm mới theo category name không thuộc sale
+    @GetMapping("/products/category/{categoryName}/new/top10")
+    public ResponseEntity<ApiResponse<List<ProductResponse>>> getTop10NewProductsByCategory(
+            @PathVariable("categoryName") String categoryName) {
+        List<ProductResponse> products = productService.getTop10NewProductsByCategory(categoryName);
+        return ResponseEntity
+                .ok(ApiResponse.success(products, "Lấy top 10 sản phẩm " + categoryName + " mới thành công"));
     }
 
     // Tạo mới sản phẩm (có thể có hoặc không có ảnh)
@@ -124,6 +145,15 @@ public class ProductController {
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error("Lỗi upload ảnh: " + e.getMessage()));
         }
+    }
+
+    // Search sản phẩm theo tên (LIKE, ignore case, chỉ lấy sản phẩm active, limit
+    // 5)
+    @GetMapping("/products/search")
+    public ResponseEntity<ApiResponse<List<ProductResponse>>> searchProductsByName(
+            @RequestParam("keyword") String keyword) {
+        List<ProductResponse> products = productService.searchProductsByName(keyword);
+        return ResponseEntity.ok(ApiResponse.success(products, "Tìm kiếm sản phẩm thành công"));
     }
 
 }

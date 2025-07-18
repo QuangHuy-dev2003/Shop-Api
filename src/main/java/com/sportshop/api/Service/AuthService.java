@@ -261,6 +261,7 @@ public class AuthService {
         refreshToken.setUser(user);
         refreshToken.setToken(token);
         refreshToken.setExpiresAt(java.time.LocalDateTime.now().plusDays(7)); // 7 ngày
+        refreshTokenRepository.deleteByUserId(refreshToken.getUser().getId());
         refreshTokenRepository.save(refreshToken);
         System.out.println(
                 "Refresh token saved for user: " + user.getEmail() + ", token: " + token.substring(0, 20) + "...");
@@ -385,6 +386,23 @@ public class AuthService {
                 "Kích hoạt tài khoản admin thành công! Bạn có thể đăng nhập.",
                 user.getEmail(),
                 user.getId());
+    }
+
+    /**
+     * Đổi mật khẩu cho user đã đăng nhập (theo userId)
+     */
+    @Transactional
+    public void changePassword(Long userId, String currentPassword, String newPassword) {
+        Users user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy tài khoản với userId này"));
+        if (user.getProvider() == Users.Provider.GOOGLE) {
+            throw new RuntimeException("Tài khoản Google không thể đổi mật khẩu theo cách này.");
+        }
+        if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+            throw new RuntimeException("Mật khẩu hiện tại không đúng.");
+        }
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
     }
 
 }

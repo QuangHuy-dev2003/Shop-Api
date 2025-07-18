@@ -22,7 +22,8 @@ public class CORSConfig {
                                 "http://localhost:3001", // React dev alternative
                                 "http://localhost:8080", // Vue dev
                                 "http://localhost:4200",
-                                "http://localhost:5174" // React dev
+                                "http://localhost:5174",
+                                "http://192.168.1.4:5174"
                 // Admin panel
                 );
                 configuration.setAllowedOrigins(allowedOrigins);

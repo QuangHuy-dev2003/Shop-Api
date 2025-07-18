@@ -17,5 +17,9 @@ public class CartItemResponse {
     private String color;
     private Integer quantity;
     private BigDecimal unitPrice;
+    private BigDecimal salePrice; // Thêm trường giá sale
     private BigDecimal totalPrice;
+    private String imageUrl; // URL ảnh của biến thể màu
+    private Integer stockQuantity; // Số lượng tồn kho của biến thể
+    private Boolean isOnSale; // Trạng thái sale của sản phẩm
 }

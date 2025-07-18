@@ -1,11 +1,17 @@
 package com.sportshop.api.Service;
 
 import com.sportshop.api.Domain.Request.Order.PlaceOrderRequest;
+import com.sportshop.api.Domain.Reponse.Order.DashboardStatisticsResponse;
+import com.sportshop.api.Domain.Reponse.Order.MonthlyRevenueResponse;
 import com.sportshop.api.Domain.Reponse.Order.OrderResponse;
+import com.sportshop.api.Domain.Reponse.Order.OrderStatisticsResponse;
+import com.sportshop.api.Domain.Reponse.Order.TopProductResponse;
 import com.sportshop.api.Domain.*;
 import com.sportshop.api.Repository.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
 import java.util.List;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -13,6 +19,8 @@ import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
+import jakarta.persistence.criteria.Predicate;
+
 import java.time.LocalDateTime;
 import java.util.stream.Collectors;
 import java.util.Random;
@@ -25,6 +33,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
+
 import java.time.LocalDate;
 import java.util.Map;
 
@@ -187,6 +197,16 @@ public class OrderService {
         ordersRepository.save(order);
         // 12. Tạo order_items
         List<Order_items> orderItems = cartItems.stream().map(item -> {
+            if (item.getProduct() == null) {
+                throw new RuntimeException("Cart item thiếu thông tin sản phẩm (product_id)!");
+            }
+            // Nếu sản phẩm có variant, phải có variant
+            if (item.getProduct().getProduct_variants() != null && !item.getProduct().getProduct_variants().isEmpty()) {
+                if (item.getVariant() == null) {
+                    throw new RuntimeException("Cart item thiếu thông tin biến thể (variant_id) cho sản phẩm: "
+                            + item.getProduct().getName());
+                }
+            }
             Order_items oi = new Order_items();
             oi.setOrder(order);
             oi.setProduct(item.getProduct());
@@ -273,6 +293,7 @@ public class OrderService {
             }
             return new OrderResponse.OrderItemInfo(
                     oi.getProduct().getId(),
+                    oi.getVariant() != null ? oi.getVariant().getId() : null,
                     oi.getProductName(),
                     oi.getSize(),
                     oi.getColor(),
@@ -296,7 +317,9 @@ public class OrderService {
                 order.getTotal_amount(),
                 order.getDiscountAmount(),
                 itemInfos,
-                order.getOrderCode());
+                order.getOrderCode(),
+                order.getUser().getId(),
+                order.getUser().getFullName());
     }
 
     // Sinh mã đơn hàng dạng VNSPXxxxxxxx
@@ -353,7 +376,6 @@ public class OrderService {
             helper.setText(htmlContent, true);
             mailSender.send(message);
         } catch (Exception e) {
-            e.printStackTrace(); // log stacktrace chi tiết
             throw new RuntimeException("Lỗi khi render/gửi email: " + e.getMessage());
         }
     }
@@ -386,18 +408,58 @@ public class OrderService {
             return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
         };
         Page<Orders> orderPage = ordersRepository.findAll(spec, pageable);
-        // Map sang OrderResponse
-        return orderPage.map(order -> new OrderResponse(
-                order.getId(),
-                order.getStatus().name(),
-                order.getOrderDate(),
-                order.getShippingAddress(),
-                order.getPaymentMethod().name(),
-                order.getPaymentStatus().name(),
-                order.getTotal_amount(),
-                order.getDiscountAmount(),
-                null, // items: chỉ trả về khi lấy chi tiết
-                order.getOrderCode()));
+        // Map sang OrderResponse, trả về cả order_items
+        return orderPage.map(order -> {
+            List<Order_items> items = orderItemsRepository.findByOrder(order);
+            List<OrderResponse.OrderItemInfo> itemInfos = items.stream().map(oi -> {
+                String imageUrl = null;
+                Long productId = oi.getProduct() != null ? oi.getProduct().getId() : null;
+                Long variantId = oi.getVariant() != null ? oi.getVariant().getId() : null;
+                String productName = oi.getProductName();
+                String itemSize = oi.getSize(); // Đổi tên biến ở đây
+                String color = oi.getColor();
+                Integer quantity = oi.getQuantity();
+                Long unitPrice = oi.getUnit_price();
+                Long subtotal = oi.getSubtotal();
+                if (oi.getProduct() != null) {
+                    List<Product_images> images = productImageRepository
+                            .findByProductIdAndColor(oi.getProduct().getId(), oi.getColor());
+                    if (images != null && !images.isEmpty()) {
+                        imageUrl = images.get(0).getImageUrl();
+                    } else {
+                        images = productImageRepository.findByProductIdAndColor(oi.getProduct().getId(), null);
+                        if (images != null && !images.isEmpty()) {
+                            imageUrl = images.get(0).getImageUrl();
+                        } else {
+                            imageUrl = oi.getProduct().getImageUrl();
+                        }
+                    }
+                }
+                return new OrderResponse.OrderItemInfo(
+                        productId,
+                        variantId,
+                        productName,
+                        itemSize,
+                        color,
+                        quantity,
+                        unitPrice,
+                        subtotal,
+                        imageUrl);
+            }).collect(java.util.stream.Collectors.toList());
+            return new OrderResponse(
+                    order.getId(),
+                    order.getStatus().name(),
+                    order.getOrderDate(),
+                    order.getShippingAddress(),
+                    order.getPaymentMethod().name(),
+                    order.getPaymentStatus().name(),
+                    order.getTotal_amount(),
+                    order.getDiscountAmount(),
+                    itemInfos,
+                    order.getOrderCode(),
+                    order.getUser().getId(),
+                    order.getUser().getFullName());
+        });
     }
 
     // Lấy đơn hàng theo ID
@@ -408,22 +470,25 @@ public class OrderService {
         List<Order_items> items = orderItemsRepository.findByOrder(order);
         List<OrderResponse.OrderItemInfo> itemInfos = items.stream().map(oi -> {
             String imageUrl = null;
-            // Ưu tiên lấy ảnh theo màu
-            List<Product_images> images = productImageRepository.findByProductIdAndColor(oi.getProduct().getId(),
-                    oi.getColor());
-            if (images != null && !images.isEmpty()) {
-                imageUrl = images.get(0).getImageUrl();
-            } else {
-                // fallback: lấy ảnh chung
-                images = productImageRepository.findByProductIdAndColor(oi.getProduct().getId(), null);
+            Long productId = oi.getProduct() != null ? oi.getProduct().getId() : null;
+            Long variantId = oi.getVariant() != null ? oi.getVariant().getId() : null;
+            // Lấy ảnh nếu có product, nếu không thì để null
+            if (oi.getProduct() != null) {
+                List<Product_images> images = productImageRepository.findByProductIdAndColor(productId, oi.getColor());
                 if (images != null && !images.isEmpty()) {
                     imageUrl = images.get(0).getImageUrl();
                 } else {
-                    imageUrl = oi.getProduct().getImageUrl();
+                    images = productImageRepository.findByProductIdAndColor(productId, null);
+                    if (images != null && !images.isEmpty()) {
+                        imageUrl = images.get(0).getImageUrl();
+                    } else {
+                        imageUrl = oi.getProduct().getImageUrl();
+                    }
                 }
             }
             return new OrderResponse.OrderItemInfo(
-                    oi.getProduct().getId(),
+                    productId,
+                    variantId,
                     oi.getProductName(),
                     oi.getSize(),
                     oi.getColor(),
@@ -442,7 +507,9 @@ public class OrderService {
                 order.getTotal_amount(),
                 order.getDiscountAmount(),
                 itemInfos,
-                order.getOrderCode());
+                order.getOrderCode(),
+                order.getUser().getId(),
+                order.getUser().getFullName());
     }
 
     // Lấy đơn hàng theo userId (phân trang)
@@ -460,7 +527,9 @@ public class OrderService {
                 order.getTotal_amount(),
                 order.getDiscountAmount(),
                 null,
-                order.getOrderCode()));
+                order.getOrderCode(),
+                order.getUser().getId(),
+                order.getUser().getFullName()));
     }
 
     // Tìm kiếm đơn hàng theo mã
@@ -472,20 +541,20 @@ public class OrderService {
     }
 
     // Thống kê đơn hàng
-    public com.sportshop.api.Domain.Reponse.Order.OrderStatisticsResponse getOrderStatistics(String from, String to) {
+    public OrderStatisticsResponse getOrderStatistics(String from, String to) {
         // Lọc theo ngày nếu có
-        var spec = (org.springframework.data.jpa.domain.Specification<Orders>) (root, query, cb) -> {
+        var spec = (Specification<Orders>) (root, query, cb) -> {
             var predicates = new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
-            java.time.format.DateTimeFormatter fmt = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd");
+            DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd");
             if (from != null && !from.isEmpty()) {
-                java.time.LocalDate fromDate = java.time.LocalDate.parse(from, fmt);
+                LocalDate fromDate = LocalDate.parse(from, fmt);
                 predicates.add(cb.greaterThanOrEqualTo(root.get("orderDate"), fromDate.atStartOfDay()));
             }
             if (to != null && !to.isEmpty()) {
-                java.time.LocalDate toDate = java.time.LocalDate.parse(to, fmt);
+                LocalDate toDate = LocalDate.parse(to, fmt);
                 predicates.add(cb.lessThanOrEqualTo(root.get("orderDate"), toDate.atTime(23, 59, 59)));
             }
-            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+            return cb.and(predicates.toArray(new Predicate[0]));
         };
         List<Orders> orders = ordersRepository.findAll(spec);
         long totalOrders = orders.size();
@@ -499,8 +568,138 @@ public class OrderService {
             revenueByStatus.put(status, revenueByStatus.getOrDefault(status, 0L)
                     + (o.getTotal_amount() != null ? o.getTotal_amount() : 0L));
         }
-        return new com.sportshop.api.Domain.Reponse.Order.OrderStatisticsResponse(
+        return new OrderStatisticsResponse(
                 totalOrders, totalRevenue, orderCountByStatus, revenueByStatus);
+    }
+
+    // Thống kê doanh thu theo tháng/năm
+    public List<MonthlyRevenueResponse> getMonthlyRevenue(int year) {
+        List<Orders> orders = ordersRepository.findAll((root, query, cb) -> {
+            return cb.and(
+                    cb.equal(cb.function("YEAR", Integer.class, root.get("orderDate")), year),
+                    // Chỉ loại bỏ đơn hàng đã hủy, tính doanh thu từ các đơn đã xác nhận trở lên
+                    cb.notEqual(root.get("status"), Orders.OrderStatus.CANCELLED));
+        });
+
+        Map<Integer, List<Orders>> ordersByMonth = orders.stream()
+                .collect(Collectors.groupingBy(
+                        order -> order.getOrderDate().getMonthValue()));
+
+        List<MonthlyRevenueResponse> result = new ArrayList<>();
+        String[] monthNames = { "", "Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6",
+                "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12" };
+
+        for (int month = 1; month <= 12; month++) {
+            List<Orders> monthOrders = ordersByMonth.getOrDefault(month, new ArrayList<>());
+            Long totalRevenue = monthOrders.stream()
+                    .mapToLong(o -> o.getTotal_amount() != null ? o.getTotal_amount() : 0L)
+                    .sum();
+            Long totalOrders = (long) monthOrders.size();
+
+            result.add(new MonthlyRevenueResponse(
+                    month, year, totalRevenue, totalOrders, monthNames[month]));
+        }
+
+        return result;
+    }
+
+    // Lấy top sản phẩm bán chạy
+    public List<TopProductResponse> getTopProducts(int limit) {
+        List<Order_items> orderItems = orderItemsRepository.findAll();
+
+        // Lọc các order items từ đơn hàng không bị hủy
+        List<Order_items> filteredItems = orderItems.stream()
+                .filter(item -> item.getOrder().getStatus() != Orders.OrderStatus.CANCELLED)
+                .collect(Collectors.toList());
+
+        // Group theo productId nếu có, nếu không thì group theo productName
+        Map<String, List<Order_items>> itemsByProduct = filteredItems.stream()
+                .collect(Collectors.groupingBy(item -> {
+                    if (item.getProduct() != null) {
+                        return "PRODUCT_" + item.getProduct().getId();
+                    } else {
+                        return "CUSTOM_" + item.getProductName();
+                    }
+                }));
+
+        return itemsByProduct.entrySet().stream()
+                .map(entry -> {
+                    List<Order_items> items = entry.getValue();
+                    Order_items firstItem = items.get(0);
+
+                    Long totalSold = items.stream().mapToLong(Order_items::getQuantity).sum();
+                    Long totalRevenue = items.stream().mapToLong(item -> item.getUnit_price() * item.getQuantity())
+                            .sum();
+
+                    Products product = firstItem.getProduct();
+                    String productName;
+                    String productImage = "";
+                    Long productId = null;
+
+                    if (product != null) {
+                        productId = product.getId();
+                        productName = product.getName();
+                        productImage = productImageRepository.findByProductId(product.getId())
+                                .stream().findFirst().map(Product_images::getImageUrl).orElse("");
+                    } else {
+                        productName = firstItem.getProductName();
+                    }
+
+                    return new TopProductResponse(
+                            productId, productName, totalSold, totalRevenue, productImage);
+                })
+                .sorted((a, b) -> b.getTotalSold().compareTo(a.getTotalSold()))
+                .limit(limit)
+                .collect(Collectors.toList());
+    }
+
+    // Thống kê tổng quan cho dashboard
+    public DashboardStatisticsResponse getDashboardStatistics() {
+        // Tổng doanh thu và đơn hàng
+        List<Orders> allOrders = ordersRepository.findAll((root, query, cb) -> {
+            return cb.and(
+                    cb.notEqual(root.get("status"), Orders.OrderStatus.CANCELLED));
+        });
+
+        Long totalRevenue = allOrders.stream()
+                .mapToLong(o -> o.getTotal_amount() != null ? o.getTotal_amount() : 0L)
+                .sum();
+        Long totalOrders = (long) allOrders.size();
+
+        // Tổng số khách hàng
+        Long totalCustomers = userRepository.count();
+
+        // Tổng số sản phẩm
+        Long totalProducts = (long) productService.getAllProductResponses().size();
+
+        // Doanh thu theo tháng (năm hiện tại)
+        int currentYear = java.time.LocalDateTime.now().getYear();
+        List<MonthlyRevenueResponse> monthlyRevenue = getMonthlyRevenue(
+                currentYear);
+
+        // Top sản phẩm bán chạy
+        List<TopProductResponse> topProducts = getTopProducts(5);
+
+        // Thống kê tháng hiện tại
+        int currentMonth = java.time.LocalDateTime.now().getMonthValue();
+        Long revenueThisMonth = monthlyRevenue.stream()
+                .filter(m -> m.getMonth() == currentMonth)
+                .findFirst()
+                .map(m -> m.getTotalRevenue())
+                .orElse(0L);
+
+        Long ordersThisMonth = monthlyRevenue.stream()
+                .filter(m -> m.getMonth() == currentMonth)
+                .findFirst()
+                .map(m -> m.getTotalOrders())
+                .orElse(0L);
+
+        // Khách hàng mới tháng này
+        Long newCustomersThisMonth = userRepository.count();
+
+        return new DashboardStatisticsResponse(
+                totalRevenue, totalOrders, totalCustomers, totalProducts,
+                monthlyRevenue, topProducts, revenueThisMonth, ordersThisMonth, newCustomersThisMonth);
     }
 
     // Cập nhật đơn hàng (trạng thái, thông tin nhận hàng)
@@ -599,7 +798,8 @@ public class OrderService {
     @Transactional
     public boolean processVNPayCallback(Map<String, String> params) {
         // Xác thực callback
-        if (!vnPayService.verifyPaymentResponse(params)) {
+        boolean signatureValid = vnPayService.verifyPaymentResponse(params);
+        if (!signatureValid) {
             throw new RuntimeException("Invalid VNPay signature");
         }
 
@@ -609,9 +809,14 @@ public class OrderService {
         String vnp_TransactionNo = params.get("vnp_TransactionNo");
 
         // Tìm đơn hàng theo orderCode
-        Orders order = ordersRepository.findAll((root, query, cb) -> cb.equal(root.get("orderCode"), vnp_TxnRef))
-                .stream().findFirst()
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng với mã: " + vnp_TxnRef));
+        Orders order = null;
+        try {
+            order = ordersRepository.findAll((root, query, cb) -> cb.equal(root.get("orderCode"), vnp_TxnRef))
+                    .stream().findFirst()
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng với mã: " + vnp_TxnRef));
+        } catch (Exception e) {
+            throw e;
+        }
 
         // Kiểm tra số tiền
         Long expectedAmount = order.getTotal_amount() * 100; // VNPay trả về số tiền đã nhân 100
@@ -619,32 +824,36 @@ public class OrderService {
             throw new RuntimeException("Số tiền không khớp!");
         }
 
-        if ("00".equals(vnp_ResponseCode)) {
-            // Thanh toán thành công
-            order.setPaymentStatus(Orders.PaymentStatus.PAID);
-            ordersRepository.save(order);
+        try {
+            if ("00".equals(vnp_ResponseCode)) {
+                // Thanh toán thành công
+                order.setPaymentStatus(Orders.PaymentStatus.PAID);
+                ordersRepository.save(order);
 
-            // Cập nhật payment
-            Payments payment = paymentsRepository.findByOrder(order)
-                    .stream().findFirst()
-                    .orElseThrow(() -> new RuntimeException("Không tìm thấy payment cho đơn hàng!"));
-            payment.setPaymentStatus(Payments.PaymentStatus.PAID);
-            paymentsRepository.save(payment);
+                // Cập nhật payment
+                Payments payment = paymentsRepository.findByOrder(order)
+                        .stream().findFirst()
+                        .orElseThrow(() -> new RuntimeException("Không tìm thấy payment cho đơn hàng!"));
+                payment.setPaymentStatus(Payments.PaymentStatus.PAID);
+                paymentsRepository.save(payment);
 
-            return true;
-        } else {
-            // Thanh toán thất bại
-            order.setPaymentStatus(Orders.PaymentStatus.UNPAID);
-            ordersRepository.save(order);
+                return true;
+            } else {
+                // Thanh toán thất bại
+                order.setPaymentStatus(Orders.PaymentStatus.UNPAID);
+                ordersRepository.save(order);
 
-            // Cập nhật payment
-            Payments payment = paymentsRepository.findByOrder(order)
-                    .stream().findFirst()
-                    .orElseThrow(() -> new RuntimeException("Không tìm thấy payment cho đơn hàng!"));
-            payment.setPaymentStatus(Payments.PaymentStatus.FAILED);
-            paymentsRepository.save(payment);
+                // Cập nhật payment
+                Payments payment = paymentsRepository.findByOrder(order)
+                        .stream().findFirst()
+                        .orElseThrow(() -> new RuntimeException("Không tìm thấy payment cho đơn hàng!"));
+                payment.setPaymentStatus(Payments.PaymentStatus.FAILED);
+                paymentsRepository.save(payment);
 
-            return false;
+                return false;
+            }
+        } catch (Exception e) {
+            throw e;
         }
     }
 }

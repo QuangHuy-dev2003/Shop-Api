@@ -19,7 +19,21 @@ public class PermissionInterceptorConfiguration implements WebMvcConfigurer {
                 "/error",
                 "/",
                 "/login**",
-                "/oauth2/**"
+                "/oauth2/**",
+                "/api/v1/cart/**",
+                "/api/v1/favorites/**",
+                "/api/v1/shipping-addresses/**",
+                "/api/v1/orders/place-order",
+                "/api/v1/orders/user/{userId}",
+                "/api/v1/orders/{orderId}/cancel/user",
+                "/api/v1/orders/{orderId}",
+                "/api/v1/vnpay/**",
+                "/api/v1/products/**",
+                "/api/v1/categories/**",
+                "/api/v1/brands/**",
+                "/api/v1/discounts/**",
+                "/api/v1/download-excel-template",
+                "/api/v1/users/*/avatar" // POST, DELETE avatar public
         };
         registry.addInterceptor(permissionInterceptor)
                 .excludePathPatterns(whiteList);

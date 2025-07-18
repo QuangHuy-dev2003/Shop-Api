@@ -91,7 +91,7 @@ public class UserController {
      */
     @PostMapping("/users/{id}/avatar")
     public ResponseEntity<ApiResponse<UserResponse>> uploadAvatar(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @RequestParam("file") MultipartFile file) {
         UserResponse user = userService.uploadAvatar(id, file);
         return ResponseEntity.ok(ApiResponse.success(user, "Upload avatar thành công"));
@@ -101,7 +101,7 @@ public class UserController {
      * Xóa user
      */
     @DeleteMapping("/users/{id}")
-    public ResponseEntity<ApiResponse<String>> deleteUser(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<String>> deleteUser(@PathVariable("id") Long id) {
         userService.deleteUser(id);
         return ResponseEntity.ok(ApiResponse.success("Xóa user thành công"));
     }
@@ -110,7 +110,7 @@ public class UserController {
      * Tìm user theo email
      */
     @GetMapping("/users/email/{email}")
-    public ResponseEntity<ApiResponse<UserResponse>> findByEmail(@PathVariable String email) {
+    public ResponseEntity<ApiResponse<UserResponse>> findByEmail(@PathVariable("email") String email) {
         return userService.findByEmail(email)
                 .map(user -> ResponseEntity.ok(ApiResponse.success(user, "Tìm user thành công")))
                 .orElse(ResponseEntity.notFound().build());
@@ -127,7 +127,7 @@ public class UserController {
 
     // Xoá avatar
     @DeleteMapping("/users/{id}/avatar")
-    public ResponseEntity<ApiResponse<String>> deleteAvatar(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<String>> deleteAvatar(@PathVariable("id") Long id) {
         userService.deleteAvatar(id);
         return ResponseEntity.ok(ApiResponse.success("Xóa avatar thành công"));
     }

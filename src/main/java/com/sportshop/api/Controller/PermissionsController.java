@@ -103,7 +103,7 @@ public class PermissionsController {
      * GET /api/v1/permissions/{id}
      */
     @GetMapping("/permissions/{id}")
-    public ResponseEntity<ApiResponse<PermissionResponse>> getPermissionById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<PermissionResponse>> getPermissionById(@PathVariable("id") Long id) {
         try {
             PermissionResponse permission = permissionService.getPermissionById(id);
             return ResponseEntity.ok(new ApiResponse<>(
@@ -125,7 +125,8 @@ public class PermissionsController {
      * GET /api/v1/permissions/search?name=read
      */
     @GetMapping("/permissions/search")
-    public ResponseEntity<ApiResponse<List<PermissionResponse>>> searchPermissionsByName(@RequestParam String name) {
+    public ResponseEntity<ApiResponse<List<PermissionResponse>>> searchPermissionsByName(
+            @RequestParam("name") String name) {
         try {
             List<PermissionResponse> permissions = permissionService.searchPermissionsByName(name);
             return ResponseEntity.ok(new ApiResponse<>(
@@ -148,7 +149,7 @@ public class PermissionsController {
      */
     @PutMapping("/permissions/{id}")
     public ResponseEntity<ApiResponse<PermissionResponse>> updatePermission(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @Valid @RequestBody UpdatePermissionRequest request) {
         try {
             PermissionResponse response = permissionService.updatePermission(id, request);
@@ -171,7 +172,7 @@ public class PermissionsController {
      * DELETE /api/v1/permissions/{id}
      */
     @DeleteMapping("/permissions/{id}")
-    public ResponseEntity<ApiResponse<String>> deletePermission(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<String>> deletePermission(@PathVariable("id") Long id) {
         try {
             permissionService.deletePermission(id);
             return ResponseEntity.ok(new ApiResponse<>(

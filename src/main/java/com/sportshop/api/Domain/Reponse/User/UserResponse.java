@@ -1,5 +1,7 @@
 package com.sportshop.api.Domain.Reponse.User;
 
+import com.sportshop.api.Domain.Users.Gender;
+
 import lombok.Data;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -10,6 +12,7 @@ public class UserResponse {
     private String fullName;
     private String email;
     private String phone;
+    private Gender gender;
     private Long roleId;
     private Boolean firstLogin;
     private LocalDateTime createdAt;

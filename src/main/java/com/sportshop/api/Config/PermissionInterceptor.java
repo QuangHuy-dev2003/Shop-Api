@@ -200,53 +200,82 @@ public class PermissionInterceptor implements HandlerInterceptor {
      * Kiểm tra API có phải là public không
      */
     private boolean isPublicAPI(String requestURI, String method) {
-        // Auth APIs - luôn public (bao gồm Google OAuth2)
-        if (requestURI.startsWith("/api/v1/auth/")) {
+        // Auth APIs - luôn public
+        if (requestURI.startsWith("/api/v1/auth/"))
             return true;
-        }
-
         // OTP APIs - luôn public
-        if (requestURI.startsWith("/api/v1/otp/")) {
+        if (requestURI.startsWith("/api/v1/otp/"))
             return true;
-        }
-
-        // Public GET APIs
-        if (method.equals("GET")) {
-            // Sản phẩm - public
-            if (requestURI.startsWith("/api/v1/products") &&
-                    (requestURI.equals("/api/v1/products") ||
-                            requestURI.matches("/api/v1/products/\\d+") ||
-                            requestURI.equals("/api/v1/download-excel-template"))) {
-                return true;
-            }
-
-            // Danh mục - public
-            if (requestURI.startsWith("/api/v1/categories") &&
-                    (requestURI.equals("/api/v1/categories") ||
-                            requestURI.matches("/api/v1/categories/\\d+"))) {
-                return true;
-            }
-
-            // Thương hiệu - public
-            if (requestURI.startsWith("/api/v1/brands") &&
-                    (requestURI.equals("/api/v1/brands") ||
-                            requestURI.matches("/api/v1/brands/\\d+"))) {
-                return true;
-            }
-
-            // Mã giảm giá - public (chỉ xem)
-            if (requestURI.startsWith("/api/v1/discounts") &&
-                    (requestURI.equals("/api/v1/discounts") ||
-                            requestURI.matches("/api/v1/discounts/\\d+") ||
-                            requestURI.matches("/api/v1/discounts/code/.+"))) {
-                return true;
-            }
-        }
-
-        // Validate discount code - public
-        if (requestURI.equals("/api/v1/discounts/validate") && method.equals("POST")) {
+        // Email OTP APIs
+        if (requestURI.startsWith("/api/v1/email-otp/"))
             return true;
-        }
+        // VNPay APIs - luôn public
+        if (requestURI.startsWith("/api/v1/vnpay/"))
+            return true;
+
+        // Sản phẩm - public GET
+        if (method.equals("GET") && requestURI.startsWith("/api/v1/products"))
+            return true;
+        if (method.equals("GET") && requestURI.equals("/api/v1/download-excel-template"))
+            return true;
+
+        // Danh mục - public GET
+        if (method.equals("GET") && requestURI.startsWith("/api/v1/categories"))
+            return true;
+
+        // Thương hiệu - public GET
+        if (method.equals("GET") && requestURI.startsWith("/api/v1/brands"))
+            return true;
+
+        // Mã giảm giá - public GET
+        if (method.equals("GET") && requestURI.startsWith("/api/v1/discounts"))
+            return true;
+        if (requestURI.equals("/api/v1/discounts/validate") && method.equals("POST"))
+            return true;
+
+        // Cart - public GET
+        if (method.equals("GET") && requestURI.startsWith("/api/v1/cart/"))
+            return true;
+
+        // Favorites - public GET
+        if (method.equals("GET") && requestURI.startsWith("/api/v1/favorites/"))
+            return true;
+
+        // Order - public cho các API user thao tác
+        if (requestURI.equals("/api/v1/orders/place-order") && method.equals("POST"))
+            return true;
+        if (requestURI.matches("/api/v1/orders/user/\\d+") && method.equals("GET"))
+            return true;
+        if (requestURI.matches("/api/v1/orders/\\d+/cancel/user") && method.equals("GET"))
+            return true;
+        if (requestURI.matches("/api/v1/orders/\\d+") && method.equals("GET"))
+            return true;
+
+        // Shipping address - public GET
+        if (method.equals("GET") && requestURI.startsWith("/api/v1/shipping-addresses/"))
+            return true;
+
+        // Lấy user theo email - public GET
+        if (method.equals("GET") && requestURI.matches("/api/v1/users/email/.+"))
+            return true;
+
+        // Avatar upload/delete - public
+        if (requestURI.matches("/api/v1/users/\\d+/avatar") && (method.equals("POST") || method.equals("DELETE")))
+            return true;
+
+        // User update - public
+        if (requestURI.matches("/api/v1/users/\\d+") && method.equals("PUT"))
+            return true;
+
+        // User change password - public
+        if (requestURI.matches("/api/v1/auth/change-password") && method.equals("POST"))
+            return true;
+
+        // Product Search - public
+        if (requestURI.matches("/api/v1/products/search") && method.equals("GET"))
+            return true;
+
+        // Các API public khác nếu có thể bổ sung ở đây
 
         return false;
     }

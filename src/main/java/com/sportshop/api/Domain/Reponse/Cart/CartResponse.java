@@ -15,6 +15,10 @@ public class CartResponse {
     private List<CartItemResponse> items;
     private Integer totalQuantity;
     private BigDecimal totalPrice;
+    private BigDecimal subtotal; // Giá trước khi áp mã giảm giá
     private String discountCode;
     private java.math.BigDecimal discountAmount;
+    private List<String> discountCodes;
+    private Boolean freeShipping = false;
+    private BigDecimal freeShippingAmount;
 }

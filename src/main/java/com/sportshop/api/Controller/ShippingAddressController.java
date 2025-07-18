@@ -2,7 +2,6 @@ package com.sportshop.api.Controller;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.beans.factory.annotation.Autowired;
 import jakarta.validation.Valid;
 
 import com.sportshop.api.Service.ShippingAddressService;
@@ -14,12 +13,11 @@ import com.sportshop.api.Domain.Reponse.ApiResponse;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1/users/{userId}/shipping-addresses")
+@RequestMapping("/api/v1")
 public class ShippingAddressController {
 
     private final ShippingAddressService shippingAddressService;
 
-    @Autowired
     public ShippingAddressController(ShippingAddressService shippingAddressService) {
         this.shippingAddressService = shippingAddressService;
     }
@@ -27,7 +25,7 @@ public class ShippingAddressController {
     /**
      * Lấy danh sách địa chỉ của user
      */
-    @GetMapping
+    @GetMapping("/shipping-addresses/{userId}")
     public ResponseEntity<ApiResponse<List<ShippingAddressResponse>>> getUserAddresses(
             @PathVariable("userId") Long userId) {
         List<ShippingAddressResponse> addresses = shippingAddressService.getUserAddresses(userId);
@@ -37,7 +35,7 @@ public class ShippingAddressController {
     /**
      * Tạo địa chỉ mới
      */
-    @PostMapping
+    @PostMapping("shipping-addresses/{userId}")
     public ResponseEntity<ApiResponse<ShippingAddressResponse>> createAddress(
             @PathVariable("userId") Long userId,
             @Valid @RequestBody CreateAddressRequest request) {
@@ -48,7 +46,7 @@ public class ShippingAddressController {
     /**
      * Cập nhật địa chỉ
      */
-    @PutMapping("/{addressId}")
+    @PutMapping("shipping-addresses/{userId}/{addressId}")
     public ResponseEntity<ApiResponse<ShippingAddressResponse>> updateAddress(
             @PathVariable("userId") Long userId,
             @PathVariable("addressId") Long addressId,
@@ -60,7 +58,7 @@ public class ShippingAddressController {
     /**
      * Đặt địa chỉ làm mặc định
      */
-    @PutMapping("/{addressId}/set-default")
+    @PutMapping("/shipping-addresses/{userId}/{addressId}/set-default")
     public ResponseEntity<ApiResponse<ShippingAddressResponse>> setDefaultAddress(
             @PathVariable("userId") Long userId,
             @PathVariable("addressId") Long addressId) {
@@ -71,7 +69,7 @@ public class ShippingAddressController {
     /**
      * Xóa địa chỉ
      */
-    @DeleteMapping("/{addressId}")
+    @DeleteMapping("shipping-addresses/{userId}/{addressId}")
     public ResponseEntity<ApiResponse<String>> deleteAddress(
             @PathVariable("userId") Long userId,
             @PathVariable("addressId") Long addressId) {

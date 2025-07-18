@@ -13,6 +13,7 @@ import com.sportshop.api.Domain.Request.Auth.VerifyOTPRequest;
 import com.sportshop.api.Domain.Reponse.Auth.AuthResponse;
 import com.sportshop.api.Domain.Reponse.Auth.RegisterResponse;
 import com.sportshop.api.Domain.Reponse.ApiResponse;
+import com.sportshop.api.Domain.Request.Auth.ChangePasswordRequest;
 
 import jakarta.validation.Valid;
 import java.time.LocalDateTime;
@@ -122,7 +123,7 @@ public class AuthController {
      * POST /api/auth/refresh-token
      */
     @PostMapping("/auth/refresh-token")
-    public ResponseEntity<ApiResponse<AuthResponse>> refreshToken(@RequestParam String refreshToken) {
+    public ResponseEntity<ApiResponse<AuthResponse>> refreshToken(@RequestParam("refreshToken") String refreshToken) {
         try {
             System.out.println("Refresh token request received: " + refreshToken.substring(0, 20) + "...");
             AuthResponse response = authService.refreshToken(refreshToken);
@@ -147,7 +148,7 @@ public class AuthController {
      * POST /api/auth/logout
      */
     @PostMapping("/auth/logout")
-    public ResponseEntity<ApiResponse<String>> logout(@RequestParam String refreshToken) {
+    public ResponseEntity<ApiResponse<String>> logout(@RequestParam("refreshToken") String refreshToken) {
         try {
             authService.logout(refreshToken);
             return ResponseEntity.ok(new ApiResponse<>(
@@ -223,12 +224,26 @@ public class AuthController {
     }
 
     /**
+     * Đổi mật khẩu cho user đã đăng nhập (theo userId)
+     * POST /api/auth/change-password
+     */
+    @PostMapping("/auth/change-password")
+    public ResponseEntity<ApiResponse<String>> changePassword(@RequestBody ChangePasswordRequest req) {
+        try {
+            authService.changePassword(req.getUserId(), req.getCurrentPassword(), req.getNewPassword());
+            return ResponseEntity.ok(ApiResponse.success("Đổi mật khẩu thành công!"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    /**
      * Kích hoạt tài khoản admin (đặc biệt cho tài khoản được tạo trực tiếp trong
      * DB)
      * POST /api/auth/activate-admin
      */
     @PostMapping("/auth/activate-admin")
-    public ResponseEntity<ApiResponse<RegisterResponse>> activateAdminAccount(@RequestParam String email) {
+    public ResponseEntity<ApiResponse<RegisterResponse>> activateAdminAccount(@RequestParam("email") String email) {
         try {
             RegisterResponse response = authService.activateAdminAccount(email);
             return ResponseEntity.ok(new ApiResponse<>(
@@ -266,7 +281,7 @@ public class AuthController {
         Map<String, Object> attributes = principal.getAttributes();
         String email = (String) attributes.get("email");
         String name = (String) attributes.get("name");
-        // Xử lý logic của bạn ở đây (tạo token, trả về user info, ...)
+
         return ResponseEntity.ok(attributes);
     }
 }
